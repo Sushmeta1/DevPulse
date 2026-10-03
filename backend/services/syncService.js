@@ -1,0 +1,82 @@
+const SYNC_WINDOW_DAYS = 90;
+const FRESH_MS = 2 * 60 * 1000; // skip re-fetching from GitHub if synced within the last 2 minutes
+
+async function upsertRepository(db, userId, r) {
+  const { rows } = await db.query(
+    `INSERT INTO repositories
+       (user_id, github_id, owner, name, full_name, description, language, stars, forks, open_issues, is_private, html_url, pushed_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     ON CONFLICT (user_id, full_name) DO UPDATE SET
+       github_id = EXCLUDED.github_id, description = EXCLUDED.description, language = EXCLUDED.language,
+       stars = EXCLUDED.stars, forks = EXCLUDED.forks, open_issues = EXCLUDED.open_issues,
+       is_private = EXCLUDED.is_private, html_url = EXCLUDED.html_url, pushed_at = EXCLUDED.pushed_at
+     RETURNING *`,
+    [userId, r.github_id, r.owner, r.name, r.full_name, r.description, r.language, r.stars, r.forks,
+     r.open_issues, r.is_private, r.html_url, r.pushed_at],
+  );
+  return rows[0];
+}
+
+async function upsertCommits(db, repositoryId, commits) {
+  if (!commits.length) return;
+  await db.query(
+    `INSERT INTO commits (repository_id, sha, message, author_login, author_name, committed_at, html_url)
+     SELECT $1, x.sha, x.message, x.author_login, x.author_name, x.committed_at, x.html_url
+     FROM jsonb_to_recordset($2::jsonb)
+       AS x(sha text, message text, author_login text, author_name text, committed_at timestamptz, html_url text)
+     ON CONFLICT (repository_id, sha) DO NOTHING`,
+    [repositoryId, JSON.stringify(commits)],
+  );
+}
+
+async function upsertPullRequests(db, repositoryId, pulls) {
+  if (!pulls.length) return;
+  await db.query(
+    `INSERT INTO pull_requests
+       (repository_id, number, title, state, author_login, created_at, updated_at, closed_at, merged_at, html_url)
+     SELECT $1, x.number, x.title, x.state, x.author_login, x.created_at, x.updated_at, x.closed_at, x.merged_at, x.html_url
+     FROM jsonb_to_recordset($2::jsonb)
+       AS x(number int, title text, state text, author_login text, created_at timestamptz,
+            updated_at timestamptz, closed_at timestamptz, merged_at timestamptz, html_url text)
+     ON CONFLICT (repository_id, number) DO UPDATE SET
+       title = EXCLUDED.title, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at,
+       closed_at = EXCLUDED.closed_at, merged_at = EXCLUDED.merged_at`,
+    [repositoryId, JSON.stringify(pulls)],
+  );
+}
+
+/**
+ * Makes sure the repository (and its recent commits / PRs) is stored in PostgreSQL.
+ * Fetching through the user's own token doubles as the access check for private repos.
+ */
+async function syncRepository({ db, github }, { userId, token, owner, name, force = false }) {
+  const existing = await db.query(
+    'SELECT * FROM repositories WHERE user_id = $1 AND lower(full_name) = lower($2)',
+    [userId, `${owner}/${name}`],
+  );
+  const row = existing.rows[0];
+  if (row?.last_synced_at && !force && Date.now() - new Date(row.last_synced_at).getTime() < FRESH_MS) {
+    return row;
+  }
+
+  const since = new Date(Date.now() - SYNC_WINDOW_DAYS * 86400000).toISOString();
+  const [meta, commits, pulls] = await Promise.all([
+    github.getRepository(token, owner, name),
+    github.listCommits(token, owner, name, since).catch((e) => {
+      if (e.status === 409) return []; // empty repository
+      throw e;
+    }),
+    github.listPullRequests(token, owner, name, since),
+  ]);
+
+  const repo = await upsertRepository(db, userId, meta);
+  await upsertCommits(db, repo.id, commits);
+  await upsertPullRequests(db, repo.id, pulls);
+  const { rows } = await db.query(
+    'UPDATE repositories SET last_synced_at = now() WHERE id = $1 RETURNING *',
+    [repo.id],
+  );
+  return rows[0];
+}
+
+module.exports = { syncRepository, upsertRepository, SYNC_WINDOW_DAYS };

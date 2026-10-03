@@ -1,0 +1,31 @@
+# Local full-stack run:  cp .env.example .env  &&  docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: devpulse
+      POSTGRES_PASSWORD: devpulse
+      POSTGRES_DB: devpulse
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devpulse -d devpulse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: development # plain-http local run; Railway sets production
+      DATABASE_URL: postgresql://devpulse:devpulse@db:5432/devpulse
+      PORT: 4000
+    ports:
+      - "4000:4000"
+
+volumes:
+  pgdata:
