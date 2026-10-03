@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../services/api.js';
+import { useAsync } from '../lib/useAsync.js';
 import { useAuth } from './auth.jsx';
 
 export const RANGES = [7, 14, 30, 90];
@@ -19,12 +20,12 @@ const storedRepo = () => { try { return localStorage.getItem(LAST_REPO) || ''; }
 export function WorkspaceProvider({ children }) {
   const { signOut } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [repos, setRepos] = useState({ status: 'loading', list: [], error: null });
-  const [bundle, setBundle] = useState({ status: 'idle', data: null, error: null });
   const [generating, setGenerating] = useState(false);
   const [nonce, setNonce] = useState(0);
-  const [reposNonce, setReposNonce] = useState(0);
+  const [listNonce, setListNonce] = useState(0);
+  const [reportsNonce, setReportsNonce] = useState(0);
   const forceRefresh = useRef(false);
+  const forceList = useRef(false);
 
   const rangeParam = Number(params.get('range'));
   const days = RANGES.includes(rangeParam) ? rangeParam : 30;
@@ -42,24 +43,24 @@ export function WorkspaceProvider({ children }) {
     }, { replace });
   }, [setParams]);
 
-  const handleFailure = useCallback((e) => {
-    if (e.name === 'AbortError') return false;
-    if (e.status === 401) { signOut(); return false; }
-    return true;
-  }, [signOut]);
+  // Repository list (cached server-side; "Refresh" on the Repositories page forces a GitHub round trip).
+  const list = useAsync((signal) => {
+    const refresh = forceList.current;
+    forceList.current = false;
+    return api.repositories(refresh, signal);
+  }, `repos|${listNonce}`);
 
-  // Repository list
-  useEffect(() => {
-    const ctrl = new AbortController();
-    setRepos((r) => ({ ...r, status: 'loading', error: null }));
-    api.repositories(ctrl.signal)
-      .then((list) => setRepos({ status: 'ready', list, error: null }))
-      .catch((e) => { if (handleFailure(e)) setRepos({ status: 'error', list: [], error: e }); });
-    return () => ctrl.abort();
-  }, [handleFailure, reposNonce]);
+  const repos = {
+    status: list.error && list.value === undefined ? 'error' : list.value === undefined ? 'loading' : 'ready',
+    list: list.value ?? [],
+    error: list.error,
+  };
 
   // Choose a default repository once the list is known.
-  const repo = repoParam || (repos.status === 'ready' ? (repos.list.find((r) => r.fullName === storedRepo())?.fullName || repos.list[0]?.fullName || '') : '');
+  const fallback = repos.status === 'ready'
+    ? (repos.list.find((r) => r.fullName === storedRepo())?.fullName || repos.list[0]?.fullName || '')
+    : '';
+  const repo = repoParam || fallback;
   useEffect(() => {
     if (!repoParam && repo) update({ repo }, { replace: true });
   }, [repoParam, repo, update]);
@@ -68,59 +69,70 @@ export function WorkspaceProvider({ children }) {
   }, [repo]);
 
   // Everything the dashboard shows for (repo, range), fetched together.
-  useEffect(() => {
-    if (!repo) return undefined;
-    const ctrl = new AbortController();
+  const bundle = useAsync(async (signal) => {
     const refresh = forceRefresh.current;
     forceRefresh.current = false;
-    setBundle((b) => ({ ...b, status: b.data?.repo === repo ? 'refreshing' : 'loading', error: null }));
-    Promise.all([
-      api.summary(repo, days, refresh, ctrl.signal),
-      api.pulls(repo, days, ctrl.signal),
-      api.commits(repo, days, ctrl.signal),
-      api.reports(repo, ctrl.signal),
-    ])
-      .then(([summary, pulls, commits, reports]) => {
-        setBundle({ status: 'ready', data: { repo, days, summary, pulls, commits, reports }, error: null });
-        if (refresh) toast.success('Synced with GitHub');
-      })
-      .catch((e) => {
-        if (handleFailure(e)) setBundle((b) => ({ status: 'error', data: b.data?.repo === repo ? b.data : null, error: e }));
-      });
-    return () => ctrl.abort();
-  }, [repo, days, nonce, handleFailure]);
+    const [summary, pulls, commits] = await Promise.all([
+      api.summary(repo, days, refresh, signal),
+      api.pulls(repo, days, signal),
+      api.commits(repo, days, signal),
+    ]);
+    if (refresh) toast.success('Synced with GitHub');
+    return { repo, days, summary, pulls, commits };
+  }, repo ? `${repo}|${days}|${nonce}` : null);
 
-  const generate = useCallback(async () => {
+  const reportsRes = useAsync((signal) => api.reports(repo, signal).then((reports) => ({ repo, reports })), repo ? `${repo}|${reportsNonce}` : null);
+
+  // An expired GitHub token or session sends people back to sign in - and tells them why.
+  const unauthorized = [list.error, bundle.error, reportsRes.error].some((e) => e?.status === 401);
+  const signedOut = useRef(false);
+  useEffect(() => {
+    if (unauthorized && !signedOut.current) {
+      signedOut.current = true;
+      toast.error('Your session expired. Please sign in again.');
+      signOut();
+    }
+  }, [unauthorized, signOut]);
+
+  const data = bundle.value && bundle.value.repo === repo
+    ? { ...bundle.value, reports: reportsRes.value?.repo === repo ? reportsRes.value.reports : [] }
+    : null;
+  const who = data && whoParam && data.summary.topContributors.some((p) => p.login === whoParam) ? whoParam : null;
+
+  let status = 'loading';
+  if (bundle.error && !unauthorized) status = 'error';
+  else if (bundle.settled) status = 'ready';
+  else if (data) status = 'refreshing';
+
+  const generate = async () => {
     setGenerating(true);
     try {
       const report = await api.generateSummary(repo, days);
-      setBundle((b) => (b.data?.repo === repo ? { ...b, data: { ...b.data, reports: [report, ...b.data.reports] } } : b));
+      setReportsNonce((n) => n + 1);
       toast.success('Sprint summary generated');
       return report;
     } catch (e) {
-      if (handleFailure(e)) toast.error(e.message);
+      if (e.status !== 401) toast.error(e.message);
       return null;
     } finally {
       setGenerating(false);
     }
-  }, [repo, days, handleFailure]);
+  };
 
-  const data = bundle.data && bundle.data.repo === repo ? bundle.data : null;
-  const who = data && whoParam && data.summary.topContributors.some((p) => p.login === whoParam) ? whoParam : null;
-
-  const value = useMemo(() => ({
-    repos, repo, days, who, data,
+  // Consumers re-render with the provider anyway, so memoising this object would buy nothing.
+  const value = {
+    repos, repo, days, who, data, status,
     repoMeta: repos.list.find((r) => r.fullName === repo) || null,
-    status: data ? (bundle.status === 'refreshing' ? 'refreshing' : bundle.status === 'error' ? 'error' : 'ready') : bundle.status === 'error' ? 'error' : 'loading',
-    error: bundle.error,
+    error: unauthorized ? null : bundle.error,
     generating,
     setRepo: (r) => update({ repo: r, who: null }),
     setDays: (d) => update({ range: d }),
     setWho: (w) => update({ who: w }),
     refresh: () => { forceRefresh.current = true; setNonce((n) => n + 1); },
-    retry: () => { setNonce((n) => n + 1); setReposNonce((n) => n + 1); },
+    refreshRepos: () => { forceList.current = true; setListNonce((n) => n + 1); },
+    retry: () => { setNonce((n) => n + 1); setListNonce((n) => n + 1); },
     generate,
-  }), [repos, repo, days, who, data, bundle.status, bundle.error, generating, update, generate]);
+  };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

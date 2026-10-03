@@ -18,6 +18,7 @@ function loadConfig(env = process.env) {
     frontendDist: env.FRONTEND_DIST || path.resolve(__dirname, '../../frontend/dist'),
     databaseUrl: env.DATABASE_URL || 'postgresql://devpulse:devpulse@localhost:5432/devpulse',
     databaseSsl: env.DATABASE_SSL === 'true',
+    logRequests: env.NODE_ENV !== 'test',
     demoEnabled: env.DEMO_ENABLED !== 'false',
     github: {
       clientId: env.GITHUB_CLIENT_ID || '',
@@ -33,6 +34,8 @@ function loadConfig(env = process.env) {
       geminiModel: env.GEMINI_MODEL || 'gemini-2.5-flash',
       openaiApiKey: env.OPENAI_API_KEY || '',
       openaiModel: env.OPENAI_MODEL || 'gpt-4o-mini',
+      // Reports per user per rolling 24h from a paid provider (0 = unlimited). Rule-based reports are free.
+      dailyLimit: env.AI_DAILY_LIMIT === undefined ? 20 : Number(env.AI_DAILY_LIMIT),
     },
   };
 }

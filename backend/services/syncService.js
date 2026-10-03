@@ -73,9 +73,15 @@ function syncRepository(deps, args) {
   return inflight.get(key);
 }
 
+const DAY = 86400000;
+const RETENTION_DAYS = SYNC_WINDOW_DAYS + 30;
+
 /**
  * Makes sure the repository (and its recent commits / PRs) is stored in PostgreSQL.
  * Fetching through the user's own token doubles as the access check for private repos.
+ *
+ * The first sync pulls the whole window; later ones only ask GitHub for what changed since the last
+ * sync (with a day of overlap), which keeps a "Refresh" click to a couple of API calls.
  */
 async function doSync({ db, github }, { userId, token, owner, name, force = false }) {
   const existing = await db.query(
@@ -83,12 +89,11 @@ async function doSync({ db, github }, { userId, token, owner, name, force = fals
     [userId, `${owner}/${name}`],
   );
   const row = existing.rows[0];
-  if (row?.last_synced_at && !force && Date.now() - new Date(row.last_synced_at).getTime() < FRESH_MS) {
-    return row;
-  }
+  const lastSync = row?.last_synced_at ? new Date(row.last_synced_at).getTime() : null;
+  if (lastSync && !force && Date.now() - lastSync < FRESH_MS) return row;
 
-  const since = new Date(Date.now() - SYNC_WINDOW_DAYS * 86400000).toISOString();
-  const [meta, commitResult, pullResult] = await Promise.all([
+  const fullSince = new Date(Date.now() - SYNC_WINDOW_DAYS * DAY).toISOString();
+  const fetchAll = (since) => Promise.all([
     github.getRepository(token, owner, name),
     github.listCommits(token, owner, name, since).catch((e) => {
       if (e.status === 409) return { commits: [], truncated: false }; // empty repository
@@ -97,16 +102,38 @@ async function doSync({ db, github }, { userId, token, owner, name, force = fals
     github.listPullRequests(token, owner, name, since),
   ]);
 
+  // Incremental only when the previous sync is recent enough that nothing could fall in a gap.
+  let incremental = Boolean(lastSync) && Date.now() - lastSync < (SYNC_WINDOW_DAYS - 30) * DAY;
+  let [meta, commitResult, pullResult] = await fetchAll(
+    incremental ? new Date(lastSync - DAY).toISOString() : fullSince,
+  );
+  if (incremental && (commitResult.truncated || pullResult.truncated)) {
+    // So much changed that the delta itself hit the pagination cap: start over rather than leave a hole.
+    incremental = false;
+    [meta, commitResult, pullResult] = await fetchAll(fullSince);
+  }
+
   const [repo] = await upsertRepositories(db, userId, [meta]);
   await upsertCommits(db, repo.id, commitResult.commits);
   await upsertPullRequests(db, repo.id, pullResult.pulls);
 
-  // If the pagination cap cut off older commits, remember how far back we really have data.
+  // Remember how far back we really have data if the cap cut older commits off (a delta never changes that).
   const oldest = commitResult.commits.reduce((m, c) => (!m || c.committed_at < m ? c.committed_at : m), null);
+  const truncated = incremental ? row.sync_truncated : commitResult.truncated || pullResult.truncated;
+  const historyFrom = incremental ? row.history_from : (commitResult.truncated ? oldest : null);
+
+  // Bounded storage: nothing older than the window plus a month is ever read.
+  await db.query('DELETE FROM commits WHERE repository_id = $1 AND committed_at < now() - make_interval(days => $2)', [repo.id, RETENTION_DAYS]);
+  await db.query(
+    `DELETE FROM pull_requests WHERE repository_id = $1 AND state <> 'open'
+       AND COALESCE(merged_at, closed_at, created_at) < now() - make_interval(days => $2)`,
+    [repo.id, RETENTION_DAYS],
+  );
+
   const { rows } = await db.query(
     `UPDATE repositories SET last_synced_at = now(), sync_truncated = $2, history_from = $3
      WHERE id = $1 RETURNING *`,
-    [repo.id, commitResult.truncated || pullResult.truncated, commitResult.truncated ? oldest : null],
+    [repo.id, truncated, historyFrom],
   );
   return rows[0];
 }

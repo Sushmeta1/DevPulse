@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useMatch } from 'react-router-dom';
 import { ChevronsUpDown, Lock, Search } from 'lucide-react';
 import { TooltipProvider } from '../ui/Tooltip.jsx';
 import { Kbd } from '../ui/Kbd.jsx';
@@ -67,7 +67,10 @@ export function Shell() {
   const ws = useWorkspace();
   const openPulls = ws.data?.summary.totals.openPullRequests;
 
+  const portfolio = Boolean(useMatch('/dashboard/repositories'));
+
   const items = [
+    { to: '/dashboard/repositories', label: 'Repositories' },
     { to: '/dashboard', label: 'Overview', end: true },
     { to: '/dashboard/pulls', label: 'Pull requests', count: openPulls },
     { to: '/dashboard/people', label: 'Contributors' },
@@ -95,10 +98,14 @@ export function Shell() {
           </header>
           <DemoBanner />
           <main className="mx-auto w-full max-w-[1200px] px-4 pb-20 pt-6 sm:px-6">
-            <PageHeader />
-            <DashboardGate>
-              <Outlet />
-            </DashboardGate>
+            {portfolio ? <Outlet /> : (
+              <>
+                <PageHeader />
+                <DashboardGate>
+                  <Outlet />
+                </DashboardGate>
+              </>
+            )}
           </main>
         </div>
       </CommandProvider>

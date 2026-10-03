@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const { signSession } = require('../services/tokenService');
 const { loadConfig } = require('../config/env');
 const { encrypt } = require('../utils/crypto');
 
@@ -12,7 +12,7 @@ const config = loadConfig({
 });
 
 const sessionCookie = (userId = 1) =>
-  `devpulse_token=${jwt.sign({ sub: userId, login: 'octo' }, config.jwtSecret)}`;
+  `devpulse_token=${signSession(config, { id: userId, login: 'octo' })}`;
 
 const userRow = (id = 1) => ({
   id, login: 'octo', name: 'Octo', email: null, avatar_url: 'https://a/x.png',

@@ -42,6 +42,9 @@ jobs:
       - name: Backend - install
         run: npm ci
         working-directory: backend
+      - name: Backend - lint
+        run: npm run lint
+        working-directory: backend
       - name: Backend - test (includes PostgreSQL integration)
         run: npm test
         working-directory: backend
@@ -51,6 +54,9 @@ jobs:
       - name: Frontend - install
         run: npm ci
         working-directory: frontend
+      - name: Frontend - lint
+        run: npm run lint
+        working-directory: frontend
       - name: Frontend - test
         run: npm test
         working-directory: frontend
@@ -58,9 +64,57 @@ jobs:
         run: npm run build
         working-directory: frontend
 
+  e2e:
+    name: End-to-end & accessibility
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: devpulse
+          POSTGRES_PASSWORD: devpulse
+          POSTGRES_DB: devpulse_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U devpulse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Run Playwright (real backend + built frontend, demo mode)
+        run: npm run e2e
+        working-directory: frontend
+        env:
+          CI: "true"
+          E2E_DATABASE_URL: postgresql://devpulse:devpulse@localhost:5432/devpulse_e2e
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: frontend/test-results
+          retention-days: 7
+
   docker:
     name: Build & push image
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read

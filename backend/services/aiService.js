@@ -1,4 +1,5 @@
 const { HttpError } = require('../utils/httpError');
+const { fetchWithTimeout } = require('../utils/http');
 
 function buildPrompt(repoName, summary) {
   const t = summary.totals;
@@ -80,7 +81,7 @@ function localReport(repoName, summary) {
 }
 
 async function callGemini(ai, prompt) {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${ai.geminiModel}:generateContent`,
     {
       method: 'POST',
@@ -90,6 +91,7 @@ async function callGemini(ai, prompt) {
         generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
       }),
     },
+    30000,
   );
   if (!res.ok) throw new HttpError(502, `Gemini API error (${res.status})`);
   const body = await res.json();
@@ -97,7 +99,7 @@ async function callGemini(ai, prompt) {
 }
 
 async function callOpenAI(ai, prompt) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ai.openaiApiKey}` },
     body: JSON.stringify({
@@ -106,7 +108,7 @@ async function callOpenAI(ai, prompt) {
       temperature: 0.4,
       messages: [{ role: 'user', content: prompt }],
     }),
-  });
+  }, 30000);
   if (!res.ok) throw new HttpError(502, `OpenAI API error (${res.status})`);
   const body = await res.json();
   return { text: body.choices?.[0]?.message?.content || '', model: ai.openaiModel };

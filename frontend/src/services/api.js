@@ -36,7 +36,8 @@ export const api = {
   me: (signal) => request('/user', { signal }),
   demoLogin: () => request('/auth/demo', { method: 'POST' }),
   logout: () => request('/auth/logout', { method: 'POST' }),
-  repositories: (signal) => request('/repositories', { signal }),
+  repositories: (refresh, signal) => request(`/repositories${refresh ? '?refresh=true' : ''}`, { signal }),
+  deleteAccount: () => request('/account', { method: 'DELETE' }),
   summary: (repo, days, refresh, signal) =>
     request(`/analytics/summary?repo=${enc(repo)}&days=${days}&tzOffset=${tzOffset()}${refresh ? '&refresh=true' : ''}`, { signal }),
   pulls: (repo, days, signal) => request(`/repositories/${repoPath(repo)}/pulls?days=${days}`, { signal }),

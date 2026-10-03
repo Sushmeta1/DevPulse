@@ -24,7 +24,7 @@ const REPOS = [
   { name: 'mobile', description: 'iOS and Android apps (React Native)', language: 'TypeScript', stars: 96, forks: 9, issues: 21, people: [3, 5, 2], perDay: 1.3, trend: 0.1, prRate: 0.4, leadHours: 52 },
   { name: 'design-system', description: 'Tokens, primitives and docs', language: 'CSS', stars: 2210, forks: 301, issues: 4, people: [2], perDay: 0.35, trend: 0, prRate: 0.2, leadHours: 5 },
   { name: 'platform-infrastructure-consolidation-initiative-2025-q3', description: 'Terraform modules for the multi-region migration — spans every team and every environment we operate', language: 'HCL', stars: 3, forks: 0, issues: 148, people: [4, 6], perDay: 0.7, trend: 0.3, prRate: 0.5, leadHours: 140 },
-  { name: 'monorepo', description: 'Everything else. Very busy; GitHub pagination caps apply.', language: 'TypeScript', stars: 58, forks: 4, issues: 260, people: [0, 1, 2, 3, 4, 5, 6], perDay: 11, trend: 0.2, prRate: 2.2, leadHours: 20 },
+  { name: 'monorepo', description: 'Everything else. Very busy; GitHub pagination caps apply.', language: 'TypeScript', stars: 58, forks: 4, issues: 260, people: [0, 1, 2, 3, 4, 5, 6], perDay: 17, trend: 0.2, prRate: 2.6, leadHours: 20 },
   { name: 'legacy-monolith', description: 'Maintenance mode', language: 'Ruby', stars: 12, forks: 2, issues: 9, people: [6, 4], perDay: 0.12, trend: -0.9, prRate: 0.05, leadHours: 200, quietAfterDays: 40 },
   { name: 'hello-world', description: null, language: null, stars: 0, forks: 0, issues: 0, people: [3], perDay: 0, trend: 0, prRate: 0, leadHours: 1, single: true },
   { name: 'empty', description: 'Brand new repository', language: null, stars: 0, forks: 0, issues: 0, people: [], perDay: 0, trend: 0, prRate: 0, leadHours: 1, empty: true },
@@ -150,6 +150,14 @@ function generate(spec, nowMs) {
 }
 
 const find = (name) => REPOS.find((s) => s.name === name);
+
+// Active repos are spaced three hours apart so the list order is stable (web first); dormant ones keep their real date.
+function pushedAt(spec, commits, now) {
+  const latest = commits[0] ? Date.parse(commits[0].committed_at) : null;
+  if (latest === null) return null;
+  const idx = REPOS.indexOf(spec);
+  return new Date(now - latest > 3 * DAY ? latest : now - (idx + 1) * 3 * 3600000).toISOString();
+}
 const meta = (spec) => ({
   github_id: 900000 + hash(spec.name) % 90000,
   owner: OWNER,
@@ -169,20 +177,17 @@ const meta = (spec) => ({
 const demoGithub = {
   async listRepositories() {
     const now = Date.now();
-    // Listed in a fixed, friendly order (web first) by capping each repo's "last push" to one hour apart.
-    return REPOS.map((s, i) => {
-      const { commits } = generate(s, now);
-      const latest = commits[0] ? Date.parse(commits[0].committed_at) : now - 90 * DAY;
-      // Active repos are spaced three hours apart so the list order is stable; dormant ones keep their real date.
-      const pushed = now - latest > 3 * DAY ? latest : now - (i + 1) * 3 * 3600000;
-      return { ...meta(s), pushed_at: new Date(pushed).toISOString() };
+    return REPOS.map((spec) => {
+      const { commits } = generate(spec, now);
+      return { ...meta(spec), pushed_at: pushedAt(spec, commits, now) || new Date(now - 90 * DAY).toISOString() };
     });
   },
   async getRepository(token, owner, name) {
     const spec = owner === OWNER && find(name);
     if (!spec) throw new HttpError(404, 'Repository not found or not accessible');
-    const { commits } = generate(spec, Date.now());
-    return { ...meta(spec), pushed_at: commits[0]?.committed_at || null };
+    const now = Date.now();
+    const { commits } = generate(spec, now);
+    return { ...meta(spec), pushed_at: pushedAt(spec, commits, now) };
   },
   async listCommits(token, owner, name, since) {
     const spec = owner === OWNER && find(name);

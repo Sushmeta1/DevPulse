@@ -3,7 +3,7 @@ import { Dialog } from '@base-ui/react/dialog';
 import { Command } from 'cmdk';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Check, CornerDownLeft, GitPullRequest, LayoutDashboard, Lock, LogOut, RefreshCw, Search, Sparkles, SunMoon, Timer, Users,
+  Boxes, Check, CornerDownLeft, GitPullRequest, LayoutDashboard, Lock, LogOut, RefreshCw, Search, Sparkles, SunMoon, Timer, Users,
 } from 'lucide-react';
 import { Kbd } from '../ui/Kbd.jsx';
 import { useAuth } from '../../state/auth.jsx';
@@ -14,6 +14,7 @@ const CommandContext = createContext({ open: () => {} });
 export const useCommandMenu = () => useContext(CommandContext);
 
 const PAGES = [
+  { to: '/dashboard/repositories', label: 'All repositories', icon: Boxes },
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { to: '/dashboard/pulls', label: 'Pull requests', icon: GitPullRequest },
   { to: '/dashboard/people', label: 'Contributors', icon: Users },
@@ -46,18 +47,6 @@ export function CommandProvider({ children }) {
 }
 
 function CommandDialog({ open, instant, onClose, onOpenChange }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { signOut, user } = useAuth();
-  const ws = useWorkspace();
-  const { toggle } = useTheme();
-  const [query, setQuery] = useState('');
-
-  useEffect(() => { if (!open) setQuery(''); }, [open]);
-
-  const run = (fn) => () => { onClose(); fn(); };
-  const goto = (to) => navigate({ pathname: to, search: location.search });
-  const repos = ws?.repos.list ?? [];
   const instantProps = instant ? { 'data-instant-open': '' } : {};
 
   return (
@@ -66,6 +55,26 @@ function CommandDialog({ open, instant, onClose, onOpenChange }) {
         <Dialog.Backdrop className="modal-backdrop fixed inset-0 z-50" {...instantProps} />
         <Dialog.Popup className="modal z-50" aria-label="Command menu" {...instantProps}>
           <Dialog.Title className="sr-only">Command menu</Dialog.Title>
+          <CommandBody onClose={onClose} />
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function CommandBody({ onClose }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { signOut, user } = useAuth();
+  const ws = useWorkspace();
+  const { toggle } = useTheme();
+  const [query, setQuery] = useState('');
+  const run = (fn) => () => { onClose(); fn(); };
+  const goto = (to) => navigate({ pathname: to, search: location.search });
+  const repos = ws?.repos.list ?? [];
+
+  return (
+    <>
           <Command loop label="Command menu">
             <div className="flex items-center hairline-b pl-4">
               <Search size={16} className="shrink-0 text-fg-faint" aria-hidden="true" />
@@ -120,8 +129,6 @@ function CommandDialog({ open, instant, onClose, onOpenChange }) {
               <span className="ml-auto flex items-center gap-1.5"><Kbd>esc</Kbd> close</span>
             </div>
           </Command>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    </>
   );
 }

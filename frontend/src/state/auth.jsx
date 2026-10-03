@@ -1,45 +1,50 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { api } from '../services/api.js';
+import { useAsync } from '../lib/useAsync.js';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
-  const [state, setState] = useState({ status: 'loading', user: null, config: null, error: null });
+  const [nonce, setNonce] = useState(0);
+  // Set after a sign-in/out action so the UI reflects it immediately, without waiting for a reload.
+  const [override, setOverride] = useState(undefined);
 
-  const load = useCallback(async (signal) => {
-    try {
-      const [config, user] = await Promise.all([
-        api.config(signal),
-        api.me(signal).catch((e) => {
-          if (e.status === 401) return null; // simply signed out
-          throw e;
-        }),
-      ]);
-      setState({ status: 'ready', user, config, error: null });
-    } catch (e) {
-      if (e.name !== 'AbortError') setState({ status: 'error', user: null, config: null, error: e });
-    }
+  const boot = useAsync(
+    (signal) => Promise.all([
+      api.config(signal),
+      api.me(signal).catch((e) => {
+        if (e.status === 401) return null; // simply signed out
+        throw e;
+      }),
+    ]),
+    `auth|${nonce}`,
+  );
+
+  const signOut = useCallback(async () => {
+    await api.logout().catch(() => {});
+    setOverride(null);
   }, []);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    load(ctrl.signal);
-    return () => ctrl.abort();
-  }, [load]);
-
-  const value = useMemo(() => ({
-    ...state,
-    retry: () => { setState((s) => ({ ...s, status: 'loading' })); load(); },
-    signOut: async () => {
-      await api.logout().catch(() => {});
-      setState((s) => ({ ...s, user: null }));
-    },
-    startDemo: async () => {
-      await api.demoLogin();
-      await load();
-    },
-  }), [state, load]);
+  const value = useMemo(() => {
+    const loaded = boot.value !== undefined;
+    return {
+      status: boot.error && !loaded ? 'error' : loaded ? 'ready' : 'loading',
+      error: boot.error,
+      config: boot.value?.[0] ?? null,
+      user: override !== undefined ? override : boot.value?.[1] ?? null,
+      retry: () => setNonce((n) => n + 1),
+      signOut,
+      startDemo: async () => {
+        await api.demoLogin();
+        setOverride(await api.me());
+      },
+      deleteAccount: async () => {
+        await api.deleteAccount();
+        setOverride(null);
+      },
+    };
+  }, [boot.value, boot.error, override, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -11,6 +11,7 @@ import NotFound from './pages/NotFound.jsx';
 
 // Charts and the command menu are only needed after sign-in, so they load as a separate chunk.
 const Shell = lazy(() => import('./components/layout/Shell.jsx').then((m) => ({ default: m.Shell })));
+const Repositories = lazy(() => import('./pages/Repositories.jsx'));
 const Overview = lazy(() => import('./pages/Overview.jsx'));
 const Pulls = lazy(() => import('./pages/Pulls.jsx'));
 const People = lazy(() => import('./pages/People.jsx'));
@@ -35,6 +36,7 @@ function Routed() {
         element={user ? <WorkspaceProvider><Suspense fallback={<Splash />}><Shell /></Suspense></WorkspaceProvider> : <Navigate to="/" replace />}
       >
         <Route index element={<Lazy><Overview /></Lazy>} />
+        <Route path="repositories" element={<Lazy><Repositories /></Lazy>} />
         <Route path="pulls" element={<Lazy><Pulls /></Lazy>} />
         <Route path="people" element={<Lazy><People /></Lazy>} />
         <Route path="insights" element={<Lazy><Insights /></Lazy>} />

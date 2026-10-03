@@ -6,3 +6,6 @@ dist/
 coverage/
 *.local
 .railway/
+# Playwright
+playwright-report/
+test-results/

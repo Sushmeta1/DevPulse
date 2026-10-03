@@ -6,6 +6,7 @@ const VARIANTS = {
   secondary: 'bg-surface text-fg shadow-[0_0_0_1px_var(--ring)] hover:bg-surface-2',
   ghost: 'text-fg-muted hover:bg-surface-2 hover:text-fg',
   accent: 'bg-accent text-[var(--accent-fg)] hover:opacity-90',
+  danger: 'bg-red text-white hover:opacity-90',
 };
 const SIZES = {
   sm: 'h-7 gap-1.5 rounded-md px-2.5 text-[13px]',

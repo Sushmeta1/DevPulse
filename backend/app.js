@@ -5,8 +5,9 @@ const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
-const routes = require('./routes');
+const createRouter = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { requestLog } = require('./middleware/requestLog');
 
 /** Builds the Express app. `deps` = { config, db, github } so tests can inject fakes. */
 function createApp(deps) {
@@ -15,6 +16,7 @@ function createApp(deps) {
   app.locals.deps = deps;
   app.set('trust proxy', 1); // Railway / reverse proxies
 
+  app.use(requestLog({ enabled: config.logRequests }));
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -29,7 +31,7 @@ function createApp(deps) {
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
-  app.use('/api', routes);
+  app.use('/api', createRouter());
   app.use('/api', notFound);
 
   // Single-container deployment: serve the built React app and fall back to index.html for client routes.

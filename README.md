@@ -18,7 +18,27 @@ activity is generated on the fly and flows through the **real** pipeline (sync -
 calls GitHub or a paid AI API. The demo repositories deliberately include edge cases: a very long repo name, an empty repo, a
 single-commit repo, a dormant repo and a monorepo that hits GitHub's pagination cap. Disable it with `DEMO_ENABLED=false`.
 
+## Screenshots
+
+| Overview (dark) | Repositories |
+|---|---|
+| ![Overview](docs/screenshots/overview-dark.png) | ![Repositories](docs/screenshots/repositories-dark.png) |
+
+| Pull requests | Contributors |
+|---|---|
+| ![Pull requests](docs/screenshots/pull-requests-dark.png) | ![Contributors](docs/screenshots/contributors-dark.png) |
+
+| Insights | Light theme | Command menu | Mobile |
+|---|---|---|---|
+| ![Insights](docs/screenshots/insights-dark.png) | ![Light](docs/screenshots/overview-light.png) | ![Command menu](docs/screenshots/command-menu-dark.png) | ![Mobile](docs/screenshots/overview-mobile-dark.png) |
+
+Regenerate them from the real app with `cd frontend && npm run screenshots`. Design, data flow and trade-offs are in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## The dashboard
+
+- **Repositories** - every repository you can access, with search, sorting, and a 30-day activity sparkline plus open-PR
+  count for the ones DevPulse has analyzed; totals across all of them at the top.
 
 - **Overview** - KPI cards with sparklines and period-over-period deltas, an interactive activity chart (commits / PRs opened /
   PRs merged, daily or weekly, previous-period overlay, per-day top contributors in the tooltip), contribution calendar, a
@@ -27,6 +47,7 @@ single-commit repo, a dormant repo and a monorepo that hits GitHub's pagination 
 - **Pull requests** - searchable, filterable list with stale-PR detection and lead times.
 - **Contributors** - per-person activity; click anyone to filter the whole dashboard (the filter lives in the URL).
 - **Insights** - plain-English health signals (review speed, stale PRs, knowledge spread, work rhythm, momentum) and AI report history.
+- **Account control** - *Delete account & data* (type your username to confirm) removes everything stored and revokes the GitHub grant.
 - `Cmd/Ctrl+K` command menu (repositories, pages, time range, actions), light/dark/system theme, shareable URLs
   (`?repo=owner/name&range=30&who=login`), skeleton/empty/error states for every view, responsive down to 320px.
 
@@ -68,7 +89,8 @@ Add `refresh=true` to the data endpoints to bypass the 2-minute sync cache.
 ```
 backend/    Express API (config, routes, controllers, services, middleware, tests)
 frontend/   React + Tailwind + Recharts dashboard (Vite)
-database/   schema.sql (applied automatically on server start)
+database/   versioned SQL migrations (applied automatically, under an advisory lock, on server start)
+docs/       ARCHITECTURE.md (diagrams, decisions, limits) and screenshots/
 .github/    CI/CD workflow
 Dockerfile, docker-compose.yml, railway.json
 ```
@@ -97,19 +119,23 @@ cd frontend && npm install && npm run dev     # UI on :5173 (proxies /api to :40
 ```
 For this setup keep `FRONTEND_URL=http://localhost:5173` in `.env`.
 
-## Tests
+## Tests and quality gates
 ```bash
-cd backend  && npm test     # set TEST_DATABASE_URL=postgresql://... to include the PostgreSQL integration test
-cd frontend && npm test
+cd backend  && npm run lint && TEST_DATABASE_URL=postgresql://... npm test   # unit, API and PostgreSQL integration (incl. concurrent migrations)
+cd frontend && npm run lint && npm test                                       # component and unit tests
+cd frontend && E2E_DATABASE_URL=postgresql://... npm run e2e                  # Playwright against the real stack in demo mode,
+                                                                              # incl. axe accessibility scans (WCAG 2.1 AA, both themes)
 ```
+The e2e suite needs a Chromium (`npx playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_PATH`).
 
 ## CI/CD and deployment (Railway)
 
 `.github/workflows/ci.yml` runs on every push/PR:
 
-1. **Test & build** - backend tests against a PostgreSQL service container, frontend tests and build.
-2. **Docker** - builds the image; on `main` pushes it to GitHub Container Registry (`ghcr.io/<owner>/<repo>`).
-3. **Deploy** - on `main`, deploys to Railway with `railway up`.
+1. **Test & build** - lint, backend tests against a PostgreSQL service container, frontend tests and build.
+2. **End-to-end & accessibility** - Playwright drives the built app against PostgreSQL in demo mode.
+3. **Docker** - builds the image; on `main` pushes it to GitHub Container Registry (`ghcr.io/<owner>/<repo>`).
+4. **Deploy** - on `main`, deploys to Railway with `railway up`.
 
 Railway setup:
 1. Create a Railway project with a **PostgreSQL** plugin and an empty service named `devpulse` (or set the `RAILWAY_SERVICE` repo variable).
@@ -123,8 +149,9 @@ The production server refuses to start if the required secrets are missing.
 
 - GitHub's API is paginated: DevPulse reads at most the 1,000 most recent commits and 500 most recently updated PRs per repository. When that cuts
   into the selected range the dashboard says so and withholds period-over-period comparisons rather than showing a misleading delta.
+- Paid AI summaries are capped per user per day (`AI_DAILY_LIMIT`, default 20); rule-based ones are free.
 - Days and hours are bucketed in the viewer's time zone (sent as `tzOffset`), not UTC.
 - The `repo` OAuth scope is needed to read private repositories. Set `GITHUB_SCOPE="read:user user:email public_repo"` to limit DevPulse to public ones.
 
 ## Security notes
-HTTPS via Railway, GitHub OAuth with `state` check, httpOnly + SameSite cookies, encrypted tokens at rest, Helmet headers, rate limiting, strict input validation on repository names, secrets only through environment variables, and a non-root container user.
+HTTPS via Railway, GitHub OAuth with `state` check, httpOnly + SameSite cookies, session JWTs pinned to HS256 + issuer, encrypted tokens at rest, Helmet headers and a strict CSP (no inline scripts), per-IP rate limiting, strict input validation on repository names, hard timeouts on every outbound call, request ids on every response and log line (query strings are never logged), account deletion with GitHub grant revocation, secrets only through environment variables, and a non-root container user.

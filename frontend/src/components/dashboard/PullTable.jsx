@@ -21,6 +21,7 @@ export function PullTable({ pulls }) {
   const [query, setQuery] = useState('');
   const [oldestFirst, setOldestFirst] = useState(false);
   const [shown, setShown] = useState(PAGE);
+  const [now] = useState(() => Date.now());
 
   const counts = useMemo(() => {
     const c = { all: pulls.length, open: 0, merged: 0, closed: 0 };
@@ -65,7 +66,7 @@ export function PullTable({ pulls }) {
       ) : (
         <ul className="hairline-t">
           {rows.slice(0, shown).map((p) => {
-            const ageDays = (Date.now() - new Date(p.createdAt).getTime()) / 86400000;
+            const ageDays = (now - new Date(p.createdAt).getTime()) / 86400000;
             const lead = p.mergedAt ? (new Date(p.mergedAt) - new Date(p.createdAt)) / 3600000 : null;
             return (
               <li key={p.number} className="hairline-b flex items-center gap-3 px-4 py-3 transition-colors duration-150 last:shadow-none hover:bg-surface-2 sm:px-5">

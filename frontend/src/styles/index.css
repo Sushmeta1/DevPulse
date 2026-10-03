@@ -12,24 +12,24 @@
   --surface-2: #f4f4f5;
   --surface-3: #ececee;
   --fg: #171717;
-  --fg-muted: #636366;
-  --fg-faint: #8a8a8f;
+  --fg-muted: #5a5a5f;
+  --fg-faint: #6c6c72;
   --ring: rgb(0 0 0 / 0.08);
   --ring-strong: rgb(0 0 0 / 0.16);
   --shadow-card: 0 0 0 1px var(--ring), 0 1px 2px rgb(0 0 0 / 0.04);
   --shadow-pop: 0 0 0 1px var(--ring), 0 8px 30px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06);
 
-  --accent: #0070f3;
+  --accent: #0060d6;
   --accent-fg: #ffffff;
-  --accent-soft: rgb(0 112 243 / 0.1);
-  --green: #12805c;
-  --green-soft: rgb(18 128 92 / 0.12);
-  --amber: #b25e09;
-  --amber-soft: rgb(178 94 9 / 0.12);
-  --red: #d1242f;
-  --red-soft: rgb(209 36 47 / 0.1);
-  --violet: #7c3aed;
-  --violet-soft: rgb(124 58 237 / 0.1);
+  --accent-soft: rgb(0 96 214 / 0.1);
+  --green: #0a6847;
+  --green-soft: rgb(10 104 71 / 0.11);
+  --amber: #8a4600;
+  --amber-soft: rgb(138 70 0 / 0.11);
+  --red: #b3121d;
+  --red-soft: rgb(179 18 29 / 0.09);
+  --violet: #6a28d6;
+  --violet-soft: rgb(106 40 214 / 0.09);
   --prev: #a1a1aa;
 
   /* Emil Kowalski's curves: built-in CSS easings are too weak for UI. */
@@ -46,7 +46,7 @@
   --surface-3: #1f1f1f;
   --fg: #ededed;
   --fg-muted: #a1a1a1;
-  --fg-faint: #717171;
+  --fg-faint: #8b8b8b;
   --ring: rgb(255 255 255 / 0.1);
   --ring-strong: rgb(255 255 255 / 0.22);
   --shadow-card: 0 0 0 1px var(--ring);
@@ -154,6 +154,7 @@ svg text { font-family: var(--font-sans); }
   background: var(--surface); box-shadow: var(--shadow-pop); border-radius: 14px; overflow: hidden;
   transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
 }
+.modal-sm { width: min(92vw, 440px); top: 22vh; }
 .modal[data-starting-style], .modal[data-ending-style] { opacity: 0; transform: translate(-50%, 0) scale(0.96); }
 /* Opened from the keyboard (hundreds of times a day): no animation at all. */
 [data-instant-open] { transition-duration: 0ms !important; }

@@ -1,4 +1,5 @@
 const { HttpError } = require('../utils/httpError');
+const { fetchWithTimeout } = require('../utils/http');
 
 const API = 'https://api.github.com';
 
@@ -15,7 +16,7 @@ async function request(token, path, params = {}) {
   const url = new URL(path.startsWith('http') ? path : `${API}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  const res = await fetch(url, { headers: headers(token) });
+  const res = await fetchWithTimeout(url, { headers: headers(token) });
   if (res.ok) return res.json();
 
   if (res.status === 401) throw new HttpError(401, 'GitHub token is invalid or revoked. Please log in again.');
@@ -47,7 +48,7 @@ async function paginate(token, path, params = {}, maxPages = 5) {
 // --- OAuth ---------------------------------------------------------------
 
 async function exchangeCodeForToken(github, code) {
-  const res = await fetch('https://github.com/login/oauth/access_token', {
+  const res = await fetchWithTimeout('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'DevPulse' },
     body: JSON.stringify({
@@ -138,7 +139,24 @@ function normalizePull(p) {
   };
 }
 
+// Best effort: tells GitHub to revoke DevPulse's grant when a user deletes their account.
+async function revokeGrant(github, token) {
+  if (!github.clientId || !github.clientSecret) return false;
+  const basic = Buffer.from(`${github.clientId}:${github.clientSecret}`).toString('base64');
+  try {
+    const res = await fetchWithTimeout(`${API}/applications/${github.clientId}/grant`, {
+      method: 'DELETE',
+      headers: { ...headers(), Authorization: `Basic ${basic}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: token }),
+    }, 8000);
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
+  revokeGrant,
   exchangeCodeForToken,
   getAuthenticatedUser,
   listRepositories,
