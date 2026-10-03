@@ -19,6 +19,8 @@ function loadConfig(env = process.env) {
     databaseUrl: env.DATABASE_URL || 'postgresql://devpulse:devpulse@localhost:5432/devpulse',
     databaseSsl: env.DATABASE_SSL === 'true',
     logRequests: env.NODE_ENV !== 'test',
+    // Multiplies every rate-limit ceiling. Leave at 1 in production; end-to-end runs log in dozens of times from one IP.
+    rateLimitScale: Number(env.RATE_LIMIT_SCALE) > 0 ? Number(env.RATE_LIMIT_SCALE) : 1,
     demoEnabled: env.DEMO_ENABLED !== 'false',
     github: {
       clientId: env.GITHUB_CLIENT_ID || '',

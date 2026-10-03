@@ -16,9 +16,9 @@ const CELL = 28;
 const W = LEFT + 24 * CELL;
 const H = TOP + 7 * CELL + 22;
 
-export function Punchcard({ matrix }) {
+export function Punchcard({ matrix, motionKey = 'punchcard' }) {
   const { ref, tip, show, hide } = useHoverTip();
-  const animate = useFirstOnly('punchcard');
+  const animate = useFirstOnly(motionKey);
   const { max, peak, total } = useMemo(() => {
     let best = { n: 0, wd: 0, h: 0 };
     let sum = 0;

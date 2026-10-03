@@ -8,11 +8,11 @@ import { useFirstOnly, useHoverTip } from '../../lib/hooks.js';
 const WEEKDAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 const month = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
 
-export function Heatmap({ daily, values, noun = 'commit', title = 'Contribution calendar', description }) {
+export function Heatmap({ daily, values, noun = 'commit', title = 'Contribution calendar', description, motionKey = 'heatmap' }) {
   const rows = useMemo(() => daily.map((d, i) => ({ ...d, count: values[i] })), [daily, values]);
   const weeks = useMemo(() => buildCalendar(rows), [rows]);
   const level = useMemo(() => levelScale(values), [values]);
-  const animate = useFirstOnly('heatmap');
+  const animate = useFirstOnly(motionKey);
   const { ref, tip, show, hide } = useHoverTip();
   const total = values.reduce((a, b) => a + b, 0);
   const activeDays = values.filter((v) => v > 0).length;

@@ -6,7 +6,7 @@ import { WorkspaceProvider } from './state/workspace.jsx';
 import { ErrorState } from './components/ui/States.jsx';
 import { Spinner } from './components/ui/Spinner.jsx';
 import { useTheme } from './lib/theme.js';
-import Login from './pages/Login.jsx';
+import Landing from './pages/Landing.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 // Charts and the command menu are only needed after sign-in, so they load as a separate chunk.
@@ -30,7 +30,7 @@ function Routed() {
 
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
       <Route
         path="/dashboard"
         element={user ? <WorkspaceProvider><Suspense fallback={<Splash />}><Shell /></Suspense></WorkspaceProvider> : <Navigate to="/" replace />}

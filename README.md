@@ -18,6 +18,21 @@ activity is generated on the fly and flows through the **real** pipeline (sync -
 calls GitHub or a paid AI API. The demo repositories deliberately include edge cases: a very long repo name, an empty repo, a
 single-commit repo, a dormant repo and a monorepo that hits GitHub's pagination cap. Disable it with `DEMO_ENABLED=false`.
 
+## Landing page
+
+The signed-out home page is a full marketing page: a hero with floating product cards that drift on their own and follow the
+pointer, a scroll-through product tour built from real screenshots, live interactive sample charts, an AI summary that writes
+itself in, a tech marquee, a how-it-works timeline, privacy notes and an FAQ.
+
+| Hero | Product tour | AI summary |
+|---|---|---|
+| ![Landing hero](docs/screenshots/landing-hero-dark.png) | ![Product tour](docs/screenshots/landing-tour-dark.png) | ![AI summary](docs/screenshots/landing-ai-dark.png) |
+
+Typography and motion follow the same rules as the app, tuned for a page people see once: a two-tone solid headline with
+tight tracking and balanced line breaks (no gradient text), one calm ease-out entrance per line, scroll reveals that play once,
+idle motion that is transform-only, and a fully gentler `prefers-reduced-motion` path (covered by Playwright). Product
+imagery comes from the real app: `cd frontend && npm run landing:assets` re-captures it from the demo workspace.
+
 ## Screenshots
 
 | Overview (dark) | Repositories |

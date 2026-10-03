@@ -28,6 +28,7 @@ export default defineConfig({
       PORT: String(PORT),
       BASE_URL: BASE,
       FRONTEND_URL: BASE,
+      RATE_LIMIT_SCALE: '100', // the suite signs into the demo dozens of times from one IP
       JWT_SECRET: 'e2e-secret',
       TOKEN_ENCRYPTION_KEY: 'e2e-key',
       DATABASE_URL: process.env.E2E_DATABASE_URL || process.env.TEST_DATABASE_URL || 'postgresql://devpulse:devpulse@localhost:5432/devpulse_test',

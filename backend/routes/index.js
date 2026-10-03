@@ -7,11 +7,12 @@ const repos = require('../controllers/repositoryController');
 const analytics = require('../controllers/analyticsController');
 const ai = require('../controllers/aiController');
 
-const limiter = (max, windowMs = 15 * 60 * 1000) =>
-  rateLimit({ windowMs, max, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests' } });
+const limiterFor = (scale) => (max, windowMs = 15 * 60 * 1000) =>
+  rateLimit({ windowMs, max: Math.ceil(max * scale), standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests' } });
 
 /** Built per app so rate-limit counters belong to that app instance (and tests don't share them). */
-function createRouter() {
+function createRouter(config) {
+  const limiter = limiterFor(config.rateLimitScale || 1);
   const router = Router();
 
   router.get('/health', async (req, res) => {

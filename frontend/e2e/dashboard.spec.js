@@ -98,7 +98,7 @@ test.describe('dashboard', () => {
   test('exiting the demo returns to the login page', async ({ page }) => {
     await page.getByRole('button', { name: 'Account menu' }).click();
     await page.getByRole('menuitem', { name: 'Exit demo' }).click();
-    await expect(page.getByRole('button', { name: /Explore the live demo/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Explore the live demo/ }).first()).toBeVisible();
   });
 });
 
@@ -124,11 +124,11 @@ test.describe('repositories portfolio', () => {
   });
 });
 
-test.describe('login page', () => {
-  test('explains itself, offers the demo, and shows readable OAuth errors', async ({ page }) => {
+test.describe('landing page entry', () => {
+  test('shows readable OAuth errors and still offers the demo', async ({ page }) => {
     await page.goto('/?error=oauth_not_configured');
     await expect(page.getByRole('alert')).toContainText('not configured');
-    await expect(page.getByRole('button', { name: /Explore the live demo/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Explore the live demo/ }).first()).toBeVisible();
   });
 
   test('protected routes redirect to login', async ({ page }) => {
@@ -151,10 +151,20 @@ test.describe('mobile', () => {
 });
 
 test.describe('reduced motion', () => {
-  test.use({ reducedMotion: 'reduce' });
-  test('entrance elements do not translate', async ({ page }) => {
+  test('entrance animations fade instead of moving', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await enterDemo(page);
-    const transform = await page.evaluate(() => getComputedStyle(document.querySelector('.rise') ?? document.body).transform);
-    expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(transform);
+    // Probe the shared entrance class directly: the real elements have finished animating by now.
+    const rise = await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.className = 'rise';
+      document.body.appendChild(probe);
+      const cs = getComputedStyle(probe);
+      const out = { animation: cs.animationName, transform: cs.transform };
+      probe.remove();
+      return out;
+    });
+    expect(rise.animation).toBe('fade-only');
+    expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(rise.transform);
   });
 });

@@ -54,7 +54,7 @@ function DemoBanner() {
   const { user, signOut } = useAuth();
   if (!user?.isDemo) return null;
   return (
-    <div className="bg-accent-soft text-[13px]">
+    <div data-demo-banner className="bg-accent-soft text-[13px]">
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
         <p><span className="font-medium text-accent">Demo workspace.</span> <span className="text-fg-muted">Generated sample data - nothing here is real, and no GitHub or AI keys are used.</span></p>
         <button onClick={signOut} className="press font-medium text-accent hover:underline">Exit demo</button>

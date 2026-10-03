@@ -73,3 +73,16 @@ test('a real stalled server is cut off at the deadline', async () => {
   server.closeAllConnections();
   server.close();
 });
+
+test('rate limits can be scaled for test environments, and bite by default', async () => {
+  const hit = async (cfg, n) => {
+    const app = createApp({ config: cfg, db: { query: async () => ({ rows: [] }) }, github: {} });
+    const codes = [];
+    for (let i = 0; i < n; i++) codes.push((await request(app).post('/api/auth/demo')).status);
+    return codes;
+  };
+  const strict = await hit({ ...config, rateLimitScale: 1 }, 32);
+  assert.equal(strict.filter((c) => c === 429).length, 2, 'the 31st and 32nd demo logins from one IP are refused');
+  const relaxed = await hit({ ...config, rateLimitScale: 100 }, 32);
+  assert.equal(relaxed.filter((c) => c === 429).length, 0);
+});

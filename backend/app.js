@@ -31,7 +31,7 @@ function createApp(deps) {
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
-  app.use('/api', createRouter());
+  app.use('/api', createRouter(config));
   app.use('/api', notFound);
 
   // Single-container deployment: serve the built React app and fall back to index.html for client routes.

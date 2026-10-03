@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint .",
-    "e2e": "vite build && playwright test --grep-invert screenshots",
-    "screenshots": "vite build && SCREENSHOTS=1 playwright test screenshots"
+    "e2e": "vite build && playwright test --grep-invert \"screenshots|landing assets\"",
+    "screenshots": "vite build && SCREENSHOTS=1 playwright test screenshots",
+    "landing:assets": "vite build && ./scripts/landing-assets.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

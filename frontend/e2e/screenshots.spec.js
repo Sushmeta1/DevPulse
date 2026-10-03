@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from '@playwright/test';
-import { enterDemo } from './helpers.js';
+import { enterDemo, revealEverything } from './helpers.js';
 
 // Regenerates docs/screenshots (used in the README and the project synopsis): `npm run screenshots`.
 const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../docs/screenshots');
@@ -14,6 +14,33 @@ const shots = [
   ['contributors', '/dashboard/people?repo=acme/web&range=30&who=maya-chen', false],
   ['insights', '/dashboard/insights?repo=acme/web&range=30', false],
 ];
+
+// The marketing landing page (signed out): hero, then a scrolled-down tour/AI section, then a phone.
+test('landing page screenshots', async ({ browser }) => {
+  for (const scheme of ['dark', 'light']) {
+    const context = await browser.newContext({ colorScheme: scheme, viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    await page.goto('/');
+    await page.waitForTimeout(2800); // headline, chips and parallax settled
+    await page.screenshot({ path: path.join(OUT, `landing-hero-${scheme}.png`) });
+    if (scheme === 'dark') {
+      await revealEverything(page);
+      await page.locator('#tour').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(1200);
+      await page.screenshot({ path: path.join(OUT, 'landing-tour-dark.png') });
+      await page.locator('#ai').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(5200); // the summary finishes writing itself
+      await page.screenshot({ path: path.join(OUT, 'landing-ai-dark.png') });
+    }
+    await context.close();
+  }
+  const phone = await browser.newContext({ colorScheme: 'dark', viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const p = await phone.newPage();
+  await p.goto('/');
+  await p.waitForTimeout(2800);
+  await p.screenshot({ path: path.join(OUT, 'landing-mobile-dark.png') });
+  await phone.close();
+});
 
 for (const scheme of ['dark', 'light']) {
   test(`screenshots (${scheme})`, async ({ browser }) => {

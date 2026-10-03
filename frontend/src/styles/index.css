@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
+@import "./landing.css";
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
@@ -209,15 +210,6 @@ svg text { font-family: var(--font-sans); }
 /* ------------------------------------------------------------ scrollbars */
 .scroll-x { overflow-x: auto; scrollbar-width: none; }
 .scroll-x::-webkit-scrollbar { display: none; }
-
-/* Background for the login page. */
-.grid-bg {
-  background-image:
-    linear-gradient(var(--ring) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ring) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 60% 55% at 50% 40%, #000 30%, transparent 100%);
-}
 
 /* --------------------------------------------------------- reduced motion */
 /* Fewer and gentler, not zero: keep opacity changes, drop movement. */

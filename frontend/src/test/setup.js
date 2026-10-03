@@ -11,4 +11,5 @@ window.matchMedia = window.matchMedia || ((query) => ({
 }));
 
 // NumberFlow is a web component; render the plain number so tests can read it.
-vi.mock('@number-flow/react', () => ({ default: ({ value }) => String(value) }));
+// The visible rolling digits are aria-hidden; the real value is the sr-only text next to it.
+vi.mock('@number-flow/react', () => ({ default: () => null }));
