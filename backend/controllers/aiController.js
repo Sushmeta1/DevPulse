@@ -1,5 +1,5 @@
-const { parseFullName, parseDays } = require('../utils/validate');
-const { syncRepository } = require('../services/syncService');
+const { parseFullName, parseDays, parseTzOffset } = require('../utils/validate');
+const { syncRepository, SYNC_WINDOW_DAYS } = require('../services/syncService');
 const { loadAndSummarize } = require('../services/analyticsService');
 const { generateReport } = require('../services/aiService');
 
@@ -9,11 +9,14 @@ const toDto = (r) => ({
 });
 
 async function createSprintSummary(req, res) {
-  const deps = req.app.locals.deps;
+  const deps = req.deps;
   const { owner, name } = parseFullName(req.body?.repo);
   const days = parseDays(req.body?.days, 14);
   const repo = await syncRepository(deps, { userId: req.user.id, token: req.githubToken, owner, name });
-  const summary = await loadAndSummarize(deps.db, repo.id, days);
+  const summary = await loadAndSummarize(deps.db, repo, days, {
+    tzOffset: parseTzOffset(req.body?.tzOffset),
+    syncWindowDays: SYNC_WINDOW_DAYS,
+  });
   const report = await generateReport(deps.config.ai, repo.full_name, summary);
 
   const { rows } = await deps.db.query(
@@ -25,7 +28,7 @@ async function createSprintSummary(req, res) {
 }
 
 async function listReports(req, res) {
-  const { db } = req.app.locals.deps;
+  const { db } = req.deps;
   const { owner, name } = parseFullName(req.query.repo);
   const { rows } = await db.query(
     `SELECT a.* FROM ai_reports a JOIN repositories r ON r.id = a.repository_id

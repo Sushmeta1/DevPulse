@@ -73,3 +73,8 @@ CREATE TABLE IF NOT EXISTS ai_reports (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ai_reports_repo_idx ON ai_reports (repository_id, created_at DESC);
+
+-- Added after the first release; idempotent for existing databases.
+ALTER TABLE repositories ADD COLUMN IF NOT EXISTS sync_truncated BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE repositories ADD COLUMN IF NOT EXISTS history_from TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE;

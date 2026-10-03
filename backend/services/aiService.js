@@ -11,10 +11,18 @@ function buildPrompt(repoName, summary) {
     mergedPullRequests: t.mergedPullRequests,
     closedPullRequests: t.closedPullRequests,
     contributors: t.contributors,
-    avgHoursToMerge: t.avgMergeHours,
+    medianHoursToMerge: t.medianMergeHours,
+    p90HoursToMerge: t.p90MergeHours,
+    mergeRatePercent: t.mergeRate,
+    stalePullRequests: t.stalePullRequests,
+    oldestOpenPullRequestDays: t.oldestOpenDays,
+    activeDays: t.activeDays,
+    longestStreakDays: t.longestStreak,
+    previousPeriod: summary.previous,
+    hourlyActivityUtcOffsetMinutes: summary.range.tzOffset,
     busiestDay: t.busiestDay,
-    topContributors: summary.topContributors.slice(0, 5),
-    commitsPerDay: summary.commitsByDay.map((d) => d.commits),
+    topContributors: summary.topContributors.slice(0, 5).map(({ login, commits, pullRequests }) => ({ login, commits, pullRequests })),
+    commitsPerDay: summary.daily.map((d) => d.commits),
   };
   return `You are an engineering-productivity analyst. Based on these GitHub activity metrics, write a sprint report.
 Respond ONLY with JSON of the form:
@@ -37,22 +45,30 @@ function parseReport(text) {
   return { summary: String(data.summary || ''), insights: list(data.insights), suggestions: list(data.suggestions) };
 }
 
+const pct = (cur, prev) => (prev ? Math.round(((cur - prev) / prev) * 100) : null);
+const sign = (n) => `${n > 0 ? '+' : ''}${n}%`;
+
 // Rule-based report, used when no AI key is configured so the feature still works offline.
 function localReport(repoName, summary) {
   const t = summary.totals;
+  const prev = summary.previous;
   const days = summary.range.days;
   const lead = summary.topContributors[0];
   const insights = [];
   const suggestions = [];
 
   insights.push(`${t.commits} commits and ${t.pullRequests} pull requests from ${t.contributors} contributor(s) in ${days} days.`);
+  const delta = prev ? pct(t.commits, prev.commits) : null;
+  if (delta !== null) insights.push(`Commit volume is ${sign(delta)} versus the previous ${days} days (${prev.commits} -> ${t.commits}).`);
   if (t.busiestDay) insights.push(`Most active day was ${t.busiestDay.date} with ${t.busiestDay.commits} commits.`);
   if (lead) insights.push(`${lead.login} led activity with ${lead.commits} commits and ${lead.pullRequests} PRs.`);
-  if (t.avgMergeHours !== null) insights.push(`Merged PRs took ${t.avgMergeHours}h on average to land.`);
+  if (t.medianMergeHours !== null) insights.push(`Median time to merge was ${t.medianMergeHours}h (p90 ${t.p90MergeHours}h).`);
 
-  if (t.openPullRequests > 3) suggestions.push(`Review the ${t.openPullRequests} open pull requests to keep work from piling up.`);
-  if (t.avgMergeHours !== null && t.avgMergeHours > 48) suggestions.push('Review turnaround is above 48h; consider smaller PRs or review rotations.');
+  if (t.stalePullRequests > 0) suggestions.push(`${t.stalePullRequests} open pull request(s) are older than 14 days; close or unblock them.`);
+  else if (t.openPullRequests > 3) suggestions.push(`Review the ${t.openPullRequests} open pull requests to keep work from piling up.`);
+  if (t.medianMergeHours !== null && t.medianMergeHours > 48) suggestions.push('Median review turnaround is above 48h; consider smaller PRs or a review rotation.');
   if (t.contributors === 1 && t.commits > 0) suggestions.push('Only one person is contributing; pairing or code reviews would spread knowledge.');
+  if (delta !== null && delta <= -30) suggestions.push('Activity dropped sharply; check whether work is blocked or moved elsewhere.');
   if (t.commits === 0) suggestions.push('No commits in this period; check whether work is blocked or tracked elsewhere.');
   if (!suggestions.length) suggestions.push('Activity looks healthy; keep PRs small and reviews prompt.');
 

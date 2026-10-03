@@ -12,8 +12,17 @@ const limiter = (max, windowMs = 15 * 60 * 1000) =>
 
 const router = Router();
 
-router.get('/health', (req, res) => res.json({ status: 'ok' }));
+router.get('/health', async (req, res) => {
+  try {
+    await req.app.locals.deps.db.query('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'degraded' });
+  }
+});
 
+router.get('/config', auth.publicConfig);
+router.post('/auth/demo', limiter(30), auth.demoLogin);
 router.get('/auth/github', limiter(30), auth.redirectToGithub);
 router.get('/auth/github/callback', limiter(30), auth.handleCallback);
 router.post('/auth/logout', auth.logout);

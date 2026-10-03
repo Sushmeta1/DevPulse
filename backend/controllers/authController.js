@@ -7,7 +7,7 @@ const STATE_COOKIE = 'devpulse_oauth_state';
 
 function redirectToGithub(req, res) {
   const { config } = req.app.locals.deps;
-  if (!config.github.clientId) throw new HttpError(500, 'GitHub OAuth is not configured');
+  if (!config.github.clientId) return res.redirect(`${config.frontendUrl}/?error=oauth_not_configured`);
 
   const state = crypto.randomBytes(16).toString('hex');
   res.cookie(STATE_COOKIE, state, { httpOnly: true, sameSite: 'lax', secure: config.isProd, maxAge: 10 * 60 * 1000 });
@@ -54,9 +54,33 @@ async function handleCallback(req, res) {
   res.redirect(`${config.frontendUrl}/dashboard`);
 }
 
+// Public capabilities, so the login page only offers what actually works on this deployment.
+function publicConfig(req, res) {
+  const { config } = req.app.locals.deps;
+  res.json({
+    githubLogin: Boolean(config.github.clientId && config.github.clientSecret),
+    demo: config.demoEnabled,
+    ai: config.ai.provider === 'local' ? 'local' : config.ai.provider,
+  });
+}
+
+async function demoLogin(req, res) {
+  const { config, db } = req.app.locals.deps;
+  if (!config.demoEnabled) throw new HttpError(404, 'Demo mode is disabled');
+  const { rows } = await db.query(
+    `INSERT INTO users (github_id, login, name, avatar_url, access_token_enc, is_demo)
+     VALUES (-1, 'demo', 'Demo workspace', NULL, $1, TRUE)
+     ON CONFLICT (github_id) DO UPDATE SET updated_at = now()
+     RETURNING id, login`,
+    [encrypt('demo', config.tokenEncryptionKey)],
+  );
+  res.cookie(COOKIE, signSession(config, rows[0]), { ...cookieOptions(config), maxAge: 24 * 3600 * 1000 });
+  res.status(204).end();
+}
+
 function logout(req, res) {
   res.clearCookie(COOKIE, { path: '/' });
   res.status(204).end();
 }
 
-module.exports = { redirectToGithub, handleCallback, logout };
+module.exports = { redirectToGithub, handleCallback, logout, publicConfig, demoLogin };

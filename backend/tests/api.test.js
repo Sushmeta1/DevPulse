@@ -90,3 +90,33 @@ test('unknown API routes return JSON 404', async () => {
   assert.equal(res.status, 404);
   assert.equal(res.body.error, 'Not found');
 });
+
+test('public config advertises only what works on this deployment', async () => {
+  const { app } = makeApp();
+  const res = await request(app).get('/api/config');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.githubLogin, true);
+  assert.equal(res.body.demo, true);
+});
+
+test('GitHub login without OAuth credentials redirects back with a readable error (no raw 500)', async () => {
+  const bare = { ...config, github: { ...config.github, clientId: '', clientSecret: '' } };
+  const app = createApp({ config: bare, db: { query: async () => ({ rows: [] }) }, github: {} });
+  const res = await request(app).get('/api/auth/github');
+  assert.equal(res.status, 302);
+  assert.match(res.headers.location, /error=oauth_not_configured$/);
+  const cfg = await request(app).get('/api/config');
+  assert.equal(cfg.body.githubLogin, false);
+});
+
+test('demo login can be disabled', async () => {
+  const off = { ...config, demoEnabled: false };
+  const app = createApp({ config: off, db: { query: async () => ({ rows: [] }) }, github: {} });
+  assert.equal((await request(app).post('/api/auth/demo')).status, 404);
+});
+
+test('health reports degraded when the database is down', async () => {
+  const app = createApp({ config, db: { query: async () => { throw new Error('down'); } }, github: {} });
+  const res = await request(app).get('/api/health');
+  assert.equal(res.status, 503);
+});

@@ -20,20 +20,28 @@ async function request(token, path, params = {}) {
 
   if (res.status === 401) throw new HttpError(401, 'GitHub token is invalid or revoked. Please log in again.');
   if (res.status === 404) throw new HttpError(404, 'Repository not found or not accessible');
-  if (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0') {
-    throw new HttpError(429, 'GitHub API rate limit reached. Try again later.');
+  if (res.status === 403 || res.status === 429) {
+    if (res.headers.get('x-ratelimit-remaining') === '0' || res.status === 429) {
+      throw new HttpError(429, 'GitHub API rate limit reached. Try again in a few minutes.');
+    }
+    throw new HttpError(403, 'GitHub denied access. If this repository belongs to an organisation with SAML SSO, authorize DevPulse for it in GitHub settings.');
   }
+  if (res.status === 409) throw new HttpError(409, 'Repository is empty');
+  if (res.status === 451) throw new HttpError(451, 'Repository is unavailable for legal reasons');
   throw new HttpError(502, `GitHub API error (${res.status})`);
 }
 
+// Returns every item up to `maxPages` pages; `truncated` says the cap (not GitHub) ended the listing.
 async function paginate(token, path, params = {}, maxPages = 5) {
   const items = [];
+  let truncated = false;
   for (let page = 1; page <= maxPages; page++) {
     const batch = await request(token, path, { ...params, per_page: 100, page });
     items.push(...batch);
     if (batch.length < 100) break;
+    if (page === maxPages) truncated = true;
   }
-  return items;
+  return { items, truncated };
 }
 
 // --- OAuth ---------------------------------------------------------------
@@ -76,17 +84,20 @@ const normalizeRepo = (r) => ({
 });
 
 async function listRepositories(token) {
-  const repos = await paginate(token, '/user/repos', { sort: 'pushed', affiliation: 'owner,collaborator,organization_member' }, 3);
-  return repos.map(normalizeRepo);
+  const { items } = await paginate(token, '/user/repos', { sort: 'pushed', affiliation: 'owner,collaborator,organization_member' }, 3);
+  return items.map(normalizeRepo);
 }
 
 async function getRepository(token, owner, name) {
   return normalizeRepo(await request(token, `/repos/${owner}/${name}`));
 }
 
+const COMMIT_PAGES = 10;
+const PULL_PAGES = 5;
+
 async function listCommits(token, owner, name, since) {
-  const commits = await paginate(token, `/repos/${owner}/${name}/commits`, { since }, 5);
-  return commits.map((c) => ({
+  const { items, truncated } = await paginate(token, `/repos/${owner}/${name}/commits`, { since }, COMMIT_PAGES);
+  const commits = items.map((c) => ({
     sha: c.sha,
     message: (c.commit.message || '').split('\n')[0].slice(0, 300),
     author_login: c.author?.login || null,
@@ -94,22 +105,23 @@ async function listCommits(token, owner, name, since) {
     committed_at: c.commit.author?.date || c.commit.committer?.date,
     html_url: c.html_url,
   }));
+  return { commits, truncated };
 }
 
 async function listPullRequests(token, owner, name, since) {
   const sinceMs = new Date(since).getTime();
   const out = [];
-  for (let page = 1; page <= 3; page++) {
+  for (let page = 1; page <= PULL_PAGES; page++) {
     const batch = await request(token, `/repos/${owner}/${name}/pulls`, {
       state: 'all', sort: 'updated', direction: 'desc', per_page: 100, page,
     });
     for (const p of batch) {
-      if (new Date(p.updated_at).getTime() < sinceMs) return out.map(normalizePull);
+      if (new Date(p.updated_at).getTime() < sinceMs) return { pulls: out.map(normalizePull), truncated: false };
       out.push(p);
     }
-    if (batch.length < 100) break;
+    if (batch.length < 100) return { pulls: out.map(normalizePull), truncated: false };
   }
-  return out.map(normalizePull);
+  return { pulls: out.map(normalizePull), truncated: true };
 }
 
 function normalizePull(p) {

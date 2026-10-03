@@ -26,4 +26,12 @@ function parseDays(value, fallback = 30) {
   return n;
 }
 
-module.exports = { parseRepo, parseFullName, parseDays };
+// Minutes east of UTC; real-world offsets span -12:00 .. +14:00.
+function parseTzOffset(value) {
+  if (value === undefined || value === '') return 0;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < -720 || n > 840) throw new HttpError(400, 'tzOffset must be minutes between -720 and 840');
+  return n;
+}
+
+module.exports = { parseRepo, parseFullName, parseDays, parseTzOffset };

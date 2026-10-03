@@ -18,6 +18,7 @@ function loadConfig(env = process.env) {
     frontendDist: env.FRONTEND_DIST || path.resolve(__dirname, '../../frontend/dist'),
     databaseUrl: env.DATABASE_URL || 'postgresql://devpulse:devpulse@localhost:5432/devpulse',
     databaseSsl: env.DATABASE_SSL === 'true',
+    demoEnabled: env.DEMO_ENABLED !== 'false',
     github: {
       clientId: env.GITHUB_CLIENT_ID || '',
       clientSecret: env.GITHUB_CLIENT_SECRET || '',

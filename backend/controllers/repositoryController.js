@@ -1,5 +1,5 @@
 const { parseRepo, parseDays } = require('../utils/validate');
-const { syncRepository, upsertRepository } = require('../services/syncService');
+const { syncRepository, upsertRepositories } = require('../services/syncService');
 
 const toDto = (r) => ({
   id: r.id,
@@ -17,23 +17,22 @@ const toDto = (r) => ({
 });
 
 async function listRepositories(req, res) {
-  const { db, github } = req.app.locals.deps;
+  const { db, github } = req.deps;
   const repos = await github.listRepositories(req.githubToken);
   // Cache the list in PostgreSQL (metadata only; commits/PRs are synced on demand).
-  const saved = [];
-  for (const r of repos) saved.push(await upsertRepository(db, req.user.id, r));
-  res.json(saved.map(toDto));
+  const saved = await upsertRepositories(db, req.user.id, repos);
+  res.json(saved.sort((a, b) => new Date(b.pushed_at || 0) - new Date(a.pushed_at || 0)).map(toDto));
 }
 
 async function listCommits(req, res) {
-  const deps = req.app.locals.deps;
+  const deps = req.deps;
   const { owner, name } = parseRepo(req.params.owner, req.params.repo);
   const days = parseDays(req.query.days);
   const repo = await syncRepository(deps, { userId: req.user.id, token: req.githubToken, owner, name, force: req.query.refresh === 'true' });
   const { rows } = await deps.db.query(
     `SELECT sha, message, author_login, author_name, committed_at, html_url FROM commits
      WHERE repository_id = $1 AND committed_at >= now() - make_interval(days => $2)
-     ORDER BY committed_at DESC LIMIT 100`,
+     ORDER BY committed_at DESC LIMIT 50`,
     [repo.id, days],
   );
   res.json(rows.map((c) => ({
@@ -43,7 +42,7 @@ async function listCommits(req, res) {
 }
 
 async function listPulls(req, res) {
-  const deps = req.app.locals.deps;
+  const deps = req.deps;
   const { owner, name } = parseRepo(req.params.owner, req.params.repo);
   const days = parseDays(req.query.days);
   const repo = await syncRepository(deps, { userId: req.user.id, token: req.githubToken, owner, name, force: req.query.refresh === 'true' });
