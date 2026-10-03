@@ -9,5 +9,5 @@ export default defineConfig({
     // In dev the API runs separately; in production Express serves this build, so /api is same-origin.
     proxy: { '/api': 'http://localhost:4000' },
   },
-  test: { environment: 'node' },
+  test: { environment: 'jsdom', setupFiles: ['./src/test/setup.js'], css: false },
 });

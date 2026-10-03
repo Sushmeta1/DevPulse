@@ -86,8 +86,12 @@ test('sync, analytics and AI report against PostgreSQL', { skip: !url && 'TEST_D
   const big = await request(app).get('/api/analytics/summary?repo=o/big&days=90').set('Cookie', cookie);
   assert.equal(big.body.dataQuality.truncated, true);
   assert.ok(big.body.dataQuality.historyFrom);
-  assert.equal(big.body.range.previousAvailable, true);
-  assert.ok(big.body.previous, '90d + the previous 90d fit exactly in the 180d sync window');
+  assert.equal(big.body.dataQuality.incomplete, true);
+  assert.equal(big.body.previous, null, 'a partial previous period must not be used for deltas');
+  assert.equal(big.body.range.previousAvailable, false);
+  // A complete repo with the same range keeps its comparison.
+  const whole = await request(app).get('/api/analytics/summary?repo=o/r&days=90').set('Cookie', cookie);
+  assert.ok(whole.body.previous, '90d + the previous 90d fit exactly in the 180d sync window');
 
   // Another user must not see this user's repository data.
   const other = await db.query(`INSERT INTO users (github_id, login, access_token_enc) VALUES (2, 'eve', $1) RETURNING id`, [encrypt('x', config.tokenEncryptionKey)]);

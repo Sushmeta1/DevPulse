@@ -131,7 +131,7 @@ function generate(spec, nowMs) {
       let state = 'merged';
       if (stale || mergedAt > nowMs) state = 'open';
       else if (fate > 0.88) state = 'closed';
-      const number = 1000 + idx * 32 + k;
+      const number = 1 + (idx - 19900) * 8 + k; // stable per day, realistic magnitude
       pulls.push({
         number,
         title: `${pick(r, TYPES)}: ${pick(r, SUBJECTS)}`,
@@ -169,9 +169,13 @@ const meta = (spec) => ({
 const demoGithub = {
   async listRepositories() {
     const now = Date.now();
-    return REPOS.map((s) => {
+    // Listed in a fixed, friendly order (web first) by capping each repo's "last push" to one hour apart.
+    return REPOS.map((s, i) => {
       const { commits } = generate(s, now);
-      return { ...meta(s), pushed_at: commits[0]?.committed_at || new Date(now - 90 * DAY).toISOString() };
+      const latest = commits[0] ? Date.parse(commits[0].committed_at) : now - 90 * DAY;
+      // Active repos are spaced three hours apart so the list order is stable; dormant ones keep their real date.
+      const pushed = now - latest > 3 * DAY ? latest : now - (i + 1) * 3 * 3600000;
+      return { ...meta(s), pushed_at: new Date(pushed).toISOString() };
     });
   },
   async getRepository(token, owner, name) {

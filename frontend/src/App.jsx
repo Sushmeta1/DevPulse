@@ -1,37 +1,58 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { api } from './services/api.js';
+import { Toaster } from 'sonner';
+import { AuthProvider, useAuth } from './state/auth.jsx';
+import { WorkspaceProvider } from './state/workspace.jsx';
+import { ErrorState } from './components/ui/States.jsx';
+import { Spinner } from './components/ui/Spinner.jsx';
+import { useTheme } from './lib/theme.js';
 import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
+import NotFound from './pages/NotFound.jsx';
 
-const AuthContext = createContext(null);
-export const useAuth = () => useContext(AuthContext);
+// Charts and the command menu are only needed after sign-in, so they load as a separate chunk.
+const Shell = lazy(() => import('./components/layout/Shell.jsx').then((m) => ({ default: m.Shell })));
+const Overview = lazy(() => import('./pages/Overview.jsx'));
+const Pulls = lazy(() => import('./pages/Pulls.jsx'));
+const People = lazy(() => import('./pages/People.jsx'));
+const Insights = lazy(() => import('./pages/Insights.jsx'));
 
-export default function App() {
-  const [user, setUser] = useState(undefined); // undefined = loading, null = signed out
+function Splash() {
+  return <div className="grid min-h-dvh place-items-center text-fg-faint" role="status" aria-label="Loading"><Spinner size={20} /></div>;
+}
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api.me(ctrl.signal).then(setUser, (e) => e.name !== 'AbortError' && setUser(null));
-    return () => ctrl.abort();
-  }, []);
+const Lazy = ({ children }) => <Suspense fallback={null}>{children}</Suspense>;
 
-  if (user === undefined) {
-    return <div className="grid min-h-screen place-items-center text-slate-500">Loading DevPulse...</div>;
-  }
-
-  const signOut = async () => {
-    await api.logout().catch(() => {});
-    setUser(null);
-  };
+function Routed() {
+  const { status, user, error, retry } = useAuth();
+  if (status === 'loading') return <Splash />;
+  if (status === 'error') return <div className="grid min-h-dvh place-items-center"><ErrorState error={error} onRetry={retry} /></div>;
 
   return (
-    <AuthContext.Provider value={{ user, signOut }}>
-      <Routes>
-        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
-        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AuthContext.Provider>
+    <Routes>
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route
+        path="/dashboard"
+        element={user ? <WorkspaceProvider><Suspense fallback={<Splash />}><Shell /></Suspense></WorkspaceProvider> : <Navigate to="/" replace />}
+      >
+        <Route index element={<Lazy><Overview /></Lazy>} />
+        <Route path="pulls" element={<Lazy><Pulls /></Lazy>} />
+        <Route path="people" element={<Lazy><People /></Lazy>} />
+        <Route path="insights" element={<Lazy><Insights /></Lazy>} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  const { resolved } = useTheme();
+  return (
+    <AuthProvider>
+      <Routed />
+      <Toaster
+        theme={resolved} position="bottom-right" gap={8}
+        style={{ '--normal-bg': 'var(--surface)', '--normal-text': 'var(--fg)', '--normal-border': 'var(--ring)', '--border-radius': '10px' }}
+      />
+    </AuthProvider>
   );
 }

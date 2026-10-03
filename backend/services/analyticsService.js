@@ -206,6 +206,17 @@ async function loadAndSummarize(db, repo, days, { tzOffset = 0, syncWindowDays =
   });
   // Be honest when GitHub's pagination cap cut the history short of this window.
   const from = repo.history_from ? new Date(repo.history_from) : null;
+  // If the cap cut history off inside the previous period, that period is partial: comparing against it
+  // would show a wildly inflated "+315%". Drop the comparison rather than mislead.
+  if (from && repo.sync_truncated) {
+    const prevStart = new Date(`${summary.range.since}T00:00:00Z`);
+    prevStart.setUTCDate(prevStart.getUTCDate() - days);
+    if (from > prevStart) {
+      summary.previous = null;
+      summary.previousCommitsDaily = null;
+      summary.range.previousAvailable = false;
+    }
+  }
   summary.dataQuality = {
     truncated: Boolean(repo.sync_truncated),
     historyFrom: from ? from.toISOString() : null,
