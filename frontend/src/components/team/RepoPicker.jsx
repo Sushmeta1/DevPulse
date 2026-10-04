@@ -8,7 +8,7 @@ import { cn } from '../../lib/cn.js';
 export const MAX_TEAM_REPOS = 15;
 
 /** Choose which repositories make up the team view. Selection is applied on "Apply" so the page does not refetch per click. */
-export function RepoPicker({ repos, selected, onApply }) {
+export function RepoPicker({ repos, selected, onApply, max = MAX_TEAM_REPOS }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState([]);
   const [query, setQuery] = useState('');
@@ -18,8 +18,8 @@ export function RepoPicker({ repos, selected, onApply }) {
     return repos.filter((r) => !q || r.fullName.toLowerCase().includes(q));
   }, [repos, query]);
 
-  const toggle = (name) => setDraft((d) => (d.includes(name) ? d.filter((n) => n !== name) : d.length < MAX_TEAM_REPOS ? [...d, name] : d));
-  const atLimit = draft.length >= MAX_TEAM_REPOS;
+  const toggle = (name) => setDraft((d) => (d.includes(name) ? d.filter((n) => n !== name) : d.length < max ? [...d, name] : d));
+  const atLimit = draft.length >= max;
 
   return (
     <Dialog.Root
@@ -33,7 +33,7 @@ export function RepoPicker({ repos, selected, onApply }) {
           <div className="px-5 pt-5">
             <Dialog.Title className="text-base font-semibold tracking-tight">Repositories in this view</Dialog.Title>
             <Dialog.Description className="mt-1 text-[13px] text-fg-muted">
-              Pick up to {MAX_TEAM_REPOS}. Repositories you have not opened before are analyzed the first time (a few at a time).
+              Pick up to {max}. Repositories you have not opened before are analyzed the first time (a few at a time).
             </Dialog.Description>
             <label className="relative mt-3 block">
               <span className="sr-only">Filter repositories</span>

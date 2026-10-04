@@ -18,6 +18,7 @@ import { useDocumentTitle } from '../lib/hooks.js';
 import { api } from '../services/api.js';
 import { timeAgo } from '../lib/format.js';
 
+const MAX_DIGEST_REPOS = 10; // the server enforces the same cap
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SLACK_HINT = 'https://hooks.slack.com/services/...';
 
@@ -117,8 +118,8 @@ function DigestForm({ config, onSaved, demo }) {
           />
           <CardBody>
             {demo && <p className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-xs text-accent">The demo workspace can preview the digest but cannot send it. Sign in with GitHub to turn it on.</p>}
-            <Row title="Repositories" hint={repos.length ? `${repos.length} selected` : 'All repositories you have analyzed (up to 15)'}>
-              <RepoPicker repos={ws.repos.list} selected={repos} onApply={setRepos} />
+            <Row title="Repositories" hint={repos.length ? `${repos.length} selected` : `All repositories you have analyzed (up to ${MAX_DIGEST_REPOS})`}>
+              <RepoPicker repos={ws.repos.list} selected={repos} onApply={setRepos} max={MAX_DIGEST_REPOS} />
             </Row>
             <Row title="Send on" hint="Covers the 7 days before, at about 07:00 UTC.">
               <select
