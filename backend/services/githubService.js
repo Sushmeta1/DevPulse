@@ -1,5 +1,6 @@
 const { HttpError } = require('../utils/httpError');
 const { fetchWithTimeout } = require('../utils/http');
+const { deriveReviewFields } = require('./reviewUtil');
 
 const API = 'https://api.github.com';
 
@@ -109,34 +110,84 @@ async function listCommits(token, owner, name, since) {
   return { commits, truncated };
 }
 
+const PULLS_QUERY = `
+query($owner: String!, $name: String!, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(first: 50, after: $cursor, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number title state isDraft createdAt updatedAt closedAt mergedAt url
+        additions deletions changedFiles
+        author { login __typename }
+        reviews(first: 30) { nodes { state submittedAt author { login __typename } } }
+      }
+    }
+  }
+}`;
+
+async function graphql(token, query, variables) {
+  const res = await fetchWithTimeout(`${API}/graphql`, {
+    method: 'POST',
+    headers: { ...headers(token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (res.status === 401) throw new HttpError(401, 'GitHub token is invalid or revoked. Please log in again.');
+  if (res.status === 403 || res.status === 429) throw new HttpError(429, 'GitHub API rate limit reached. Try again in a few minutes.');
+  if (!res.ok) throw new HttpError(502, `GitHub API error (${res.status})`);
+  const body = await res.json();
+  if (body.errors?.length) {
+    const notFound = body.errors.some((e) => e.type === 'NOT_FOUND');
+    throw new HttpError(notFound ? 404 : 502, notFound ? 'Repository not found or not accessible' : 'GitHub GraphQL error');
+  }
+  return body.data;
+}
+
+/**
+ * Pull requests updated since `since`, newest first, with review activity and size in the same round trip
+ * (50 PRs per request instead of one REST call per PR for its reviews).
+ */
 async function listPullRequests(token, owner, name, since) {
   const sinceMs = new Date(since).getTime();
   const out = [];
-  for (let page = 1; page <= PULL_PAGES; page++) {
-    const batch = await request(token, `/repos/${owner}/${name}/pulls`, {
-      state: 'all', sort: 'updated', direction: 'desc', per_page: 100, page,
-    });
-    for (const p of batch) {
-      if (new Date(p.updated_at).getTime() < sinceMs) return { pulls: out.map(normalizePull), truncated: false };
-      out.push(p);
+  let cursor = null;
+  for (let page = 0; page < PULL_PAGES * 2; page++) { // 50 per page => same 500 PR ceiling as before
+    const data = await graphql(token, PULLS_QUERY, { owner, name, cursor });
+    const conn = data.repository.pullRequests;
+    for (const node of conn.nodes) {
+      if (new Date(node.updatedAt).getTime() < sinceMs) return { pulls: out.map(normalizePull), truncated: false };
+      out.push(node);
     }
-    if (batch.length < 100) return { pulls: out.map(normalizePull), truncated: false };
+    if (!conn.pageInfo.hasNextPage) return { pulls: out.map(normalizePull), truncated: false };
+    cursor = conn.pageInfo.endCursor;
   }
   return { pulls: out.map(normalizePull), truncated: true };
 }
 
 function normalizePull(p) {
-  return {
+  const state = p.mergedAt ? 'merged' : p.state.toLowerCase();
+  const pull = {
     number: p.number,
     title: p.title.slice(0, 300),
-    state: p.merged_at ? 'merged' : p.state,
-    author_login: p.user?.login || null,
-    created_at: p.created_at,
-    updated_at: p.updated_at,
-    closed_at: p.closed_at,
-    merged_at: p.merged_at,
-    html_url: p.html_url,
+    state,
+    author_login: p.author?.login || null,
+    author_is_bot: p.author?.__typename === 'Bot',
+    is_draft: Boolean(p.isDraft),
+    created_at: p.createdAt,
+    updated_at: p.updatedAt,
+    closed_at: p.closedAt,
+    merged_at: p.mergedAt,
+    html_url: p.url,
+    additions: p.additions ?? null,
+    deletions: p.deletions ?? null,
+    changed_files: p.changedFiles ?? null,
+    reviews: (p.reviews?.nodes || []).map((r) => ({
+      reviewer_login: r.author?.login || null,
+      is_bot: r.author?.__typename === 'Bot',
+      state: r.state,
+      submitted_at: r.submittedAt,
+    })),
   };
+  return { ...pull, ...deriveReviewFields(pull) };
 }
 
 // Best effort: tells GitHub to revoke DevPulse's grant when a user deletes their account.

@@ -46,18 +46,49 @@ async function upsertCommits(db, repositoryId, rawCommits) {
 async function upsertPullRequests(db, repositoryId, rawPulls) {
   const pulls = uniqueBy(rawPulls, (p) => p.number);
   if (!pulls.length) return;
-  await db.query(
+  const rows = pulls.map((p) => ({
+    number: p.number, title: p.title, state: p.state, author_login: p.author_login ?? null,
+    author_is_bot: Boolean(p.author_is_bot), is_draft: Boolean(p.is_draft),
+    created_at: p.created_at, updated_at: p.updated_at ?? null, closed_at: p.closed_at ?? null, merged_at: p.merged_at ?? null,
+    html_url: p.html_url ?? null, additions: p.additions ?? null, deletions: p.deletions ?? null, changed_files: p.changed_files ?? null,
+    first_review_at: p.first_review_at ?? null, first_reviewer: p.first_reviewer ?? null, review_count: p.review_count ?? 0,
+  }));
+  const { rows: saved } = await db.query(
     `INSERT INTO pull_requests
-       (repository_id, number, title, state, author_login, created_at, updated_at, closed_at, merged_at, html_url)
-     SELECT $1, x.number, x.title, x.state, x.author_login, x.created_at, x.updated_at, x.closed_at, x.merged_at, x.html_url
+       (repository_id, number, title, state, author_login, author_is_bot, is_draft, created_at, updated_at, closed_at, merged_at,
+        html_url, additions, deletions, changed_files, first_review_at, first_reviewer, review_count, reviews_known)
+     SELECT $1, x.number, x.title, x.state, x.author_login, x.author_is_bot, x.is_draft, x.created_at, x.updated_at, x.closed_at,
+            x.merged_at, x.html_url, x.additions, x.deletions, x.changed_files, x.first_review_at, x.first_reviewer, x.review_count, TRUE
      FROM jsonb_to_recordset($2::jsonb)
-       AS x(number int, title text, state text, author_login text, created_at timestamptz,
-            updated_at timestamptz, closed_at timestamptz, merged_at timestamptz, html_url text)
+       AS x(number int, title text, state text, author_login text, author_is_bot boolean, is_draft boolean, created_at timestamptz,
+            updated_at timestamptz, closed_at timestamptz, merged_at timestamptz, html_url text, additions int, deletions int,
+            changed_files int, first_review_at timestamptz, first_reviewer text, review_count int)
      ON CONFLICT (repository_id, number) DO UPDATE SET
-       title = EXCLUDED.title, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at,
-       closed_at = EXCLUDED.closed_at, merged_at = EXCLUDED.merged_at`,
-    [repositoryId, JSON.stringify(pulls)],
+       title = EXCLUDED.title, state = EXCLUDED.state, is_draft = EXCLUDED.is_draft, updated_at = EXCLUDED.updated_at,
+       closed_at = EXCLUDED.closed_at, merged_at = EXCLUDED.merged_at, additions = EXCLUDED.additions,
+       deletions = EXCLUDED.deletions, changed_files = EXCLUDED.changed_files, first_review_at = EXCLUDED.first_review_at,
+       first_reviewer = EXCLUDED.first_reviewer, review_count = EXCLUDED.review_count, reviews_known = TRUE
+     RETURNING id, number`,
+    [repositoryId, JSON.stringify(rows)],
   );
+
+  // Individual review events power reviewer-load analytics.
+  const idByNumber = new Map(saved.map((r) => [r.number, r.id]));
+  const reviews = pulls.flatMap((p) => (p.reviews || []).map((r) => ({
+    pull_request_id: idByNumber.get(p.number), reviewer_login: r.reviewer_login, state: r.state,
+    submitted_at: r.submitted_at, is_bot: Boolean(r.is_bot),
+  }))).filter((r) => r.pull_request_id);
+  const unique = uniqueBy(reviews, (r) => `${r.pull_request_id}|${r.reviewer_login}|${r.submitted_at}`);
+  if (unique.length) {
+    await db.query(
+      `INSERT INTO pull_request_reviews (pull_request_id, reviewer_login, state, submitted_at, is_bot)
+       SELECT x.pull_request_id, x.reviewer_login, x.state, x.submitted_at, x.is_bot
+       FROM jsonb_to_recordset($1::jsonb)
+         AS x(pull_request_id int, reviewer_login text, state text, submitted_at timestamptz, is_bot boolean)
+       ON CONFLICT (pull_request_id, reviewer_login, submitted_at) DO UPDATE SET state = EXCLUDED.state`,
+      [JSON.stringify(unique)],
+    );
+  }
 }
 
 // The dashboard asks for summary, PRs and reports at the same moment. Without this, three requests
@@ -75,6 +106,7 @@ function syncRepository(deps, args) {
 
 const DAY = 86400000;
 const RETENTION_DAYS = SYNC_WINDOW_DAYS + 30;
+const REVIEW_DATA_VERSION = 1; // bump when a new kind of per-PR data needs a one-off full backfill
 
 /**
  * Makes sure the repository (and its recent commits / PRs) is stored in PostgreSQL.
@@ -103,7 +135,9 @@ async function doSync({ db, github }, { userId, token, owner, name, force = fals
   ]);
 
   // Incremental only when the previous sync is recent enough that nothing could fall in a gap.
-  let incremental = Boolean(lastSync) && Date.now() - lastSync < (SYNC_WINDOW_DAYS - 30) * DAY;
+  // A repository synced before review data existed must be re-read in full once, or old PRs would look "unreviewed".
+  let incremental = Boolean(lastSync) && Date.now() - lastSync < (SYNC_WINDOW_DAYS - 30) * DAY
+    && (row.review_data_version ?? 0) >= REVIEW_DATA_VERSION;
   let [meta, commitResult, pullResult] = await fetchAll(
     incremental ? new Date(lastSync - DAY).toISOString() : fullSince,
   );
@@ -131,9 +165,9 @@ async function doSync({ db, github }, { userId, token, owner, name, force = fals
   );
 
   const { rows } = await db.query(
-    `UPDATE repositories SET last_synced_at = now(), sync_truncated = $2, history_from = $3
+    `UPDATE repositories SET last_synced_at = now(), sync_truncated = $2, history_from = $3, review_data_version = $4
      WHERE id = $1 RETURNING *`,
-    [repo.id, truncated, historyFrom],
+    [repo.id, truncated, historyFrom, REVIEW_DATA_VERSION],
   );
   return rows[0];
 }
