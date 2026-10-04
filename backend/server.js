@@ -25,12 +25,15 @@ app.use(session({
   }
 }))
 
+
 // ── Routes ──────────────────────────────────────────────
 const authRoutes   = require('./routes/authRoutes')
 const githubRoutes = require('./routes/githubRoutes')
+const aiRoutes     = require('./routes/aiRoutes')
 
 app.use('/auth',       authRoutes)
 app.use('/api/github', githubRoutes)
+app.use('/api/ai',     aiRoutes)
 
 // ── Health Check ────────────────────────────────────────
 app.get('/health', (req, res) => {
