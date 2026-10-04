@@ -1,4 +1,3 @@
-// backend/server.js
 require('dotenv').config({ path: '../.env' })
 const express   = require('express')
 const cors      = require('cors')
@@ -27,14 +26,17 @@ app.use(session({
 }))
 
 // ── Routes ──────────────────────────────────────────────
-const authRoutes = require('./routes/authRoutes')
-app.use('/auth', authRoutes)
+const authRoutes   = require('./routes/authRoutes')
+const githubRoutes = require('./routes/githubRoutes')
+
+app.use('/auth',       authRoutes)
+app.use('/api/github', githubRoutes)
 
 // ── Health Check ────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({
-    status: 'ok',
-    uptime: process.uptime(),
+    status:    'ok',
+    uptime:    process.uptime(),
     timestamp: new Date()
   })
 })
