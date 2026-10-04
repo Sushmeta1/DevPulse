@@ -1,17 +1,21 @@
-const { Pool } = require('pg');
+// backend/config/db.js
+const { Pool } = require('pg')
 
-function createPool(config) {
-  const pool = new Pool({
-    connectionString: config.databaseUrl,
-    ssl: config.databaseSsl ? { rejectUnauthorized: false } : undefined,
-    max: 10,
-    connectionTimeoutMillis: 5000,
-    statement_timeout: 20000, // a runaway query must not hold a connection forever
-  });
-  // An error on an idle client (database restart, network blip) is emitted on the pool; without a
-  // listener Node treats it as an uncaught exception and kills the process.
-  pool.on('error', (err) => console.error(JSON.stringify({ level: 'error', msg: 'idle postgres client error', error: err.message })));
-  return pool;
-}
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false
+})
 
-module.exports = { createPool };
+// Test connection on startup
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Database connection error:', err.message)
+    return
+  }
+  console.log('✅ PostgreSQL connected')
+  release()
+})
+
+module.exports = pool
