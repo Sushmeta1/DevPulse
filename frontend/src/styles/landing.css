@@ -1,0 +1,107 @@
+/* ===================== Landing page =====================
+   Marketing surface: this is where longer, more expressive motion belongs (explanation + delight, seen
+   rarely). It still follows the rules: transform/opacity only, strong custom curves, nothing gates
+   interaction, and everything has a reduced-motion fallback at the bottom. */
+
+:root { --shadow-frame: 0 0 0 1px var(--ring), 0 30px 80px -20px rgb(0 0 0 / 0.25), 0 12px 24px -12px rgb(0 0 0 / 0.12); }
+[data-theme="dark"] { --shadow-frame: 0 0 0 1px var(--ring-strong), 0 40px 100px -20px rgb(0 0 0 / 0.9), 0 0 120px -40px var(--accent-soft); }
+
+html { scroll-behavior: smooth; }
+section[id] { scroll-margin-top: 72px; }
+
+/* ---------- hero background: slow drifting light ---------- */
+.aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
+.aurora span { position: absolute; width: 60vw; max-width: 820px; aspect-ratio: 1; border-radius: 50%; will-change: transform; opacity: 0.32; }
+.aurora span:nth-child(1) { left: -10%; top: -30%; background: radial-gradient(closest-side, var(--accent-soft), transparent); animation: drift-a 26s ease-in-out infinite alternate; }
+.aurora span:nth-child(2) { right: -12%; top: -22%; background: radial-gradient(closest-side, var(--violet-soft), transparent); animation: drift-b 32s ease-in-out infinite alternate; }
+.aurora span:nth-child(3) { display: none; }
+@keyframes drift-a { to { transform: translate3d(14vw, 8vh, 0) scale(1.15); } }
+@keyframes drift-b { to { transform: translate3d(-12vw, 12vh, 0) scale(0.9); } }
+@keyframes drift-c { to { transform: translate3d(-8vw, 6vh, 0) scale(1.2); } }
+
+/* ---------- typography ----------
+   Display sizes get tighter tracking (large type reads loose by default), balanced line breaks so a
+   headline never strands one word, and a variable-font weight between the stock steps. */
+.display { font-size: clamp(2.6rem, 7.2vw, 4.75rem); line-height: 1.02; letter-spacing: -0.047em; font-weight: 570; text-wrap: balance; }
+.section-title { font-size: clamp(1.9rem, 4.2vw, 2.75rem); line-height: 1.08; letter-spacing: -0.036em; font-weight: 575; text-wrap: balance; }
+.feature-title { letter-spacing: -0.028em; font-weight: 575; text-wrap: balance; }
+.lede { text-wrap: pretty; }
+.eyebrow { font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.01em; color: var(--fg-muted); }
+
+/* Headline arrives one line at a time. Plain ease-out rise - no blur, no gradient, nothing to look at twice. */
+.hero-line { display: block; opacity: 0; transform: translateY(14px); animation: line-in 650ms var(--ease-out) forwards; animation-delay: calc(60ms + var(--i, 0) * 90ms); }
+@keyframes line-in { to { opacity: 1; transform: none; } }
+
+/* ---------- floating chips ---------- */
+.float { animation: float var(--fd, 7s) ease-in-out var(--fdelay, 0s) infinite; will-change: transform; }
+@keyframes float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(var(--r0, 0deg)); }
+  50% { transform: translate3d(0, var(--fy, -10px), 0) rotate(var(--r1, 0deg)); }
+}
+.chip { background: color-mix(in oklab, var(--surface) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 0 0 1px var(--ring-strong), 0 18px 40px -12px rgb(0 0 0 / 0.35); border-radius: 14px; }
+
+.hero-frame-body { -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); }
+
+/* ---------- scroll reveal (transitions: interruptible, and the right default for UI) ---------- */
+.reveal { transition: opacity 700ms var(--ease-out) var(--d, 0ms), transform 700ms var(--ease-out) var(--d, 0ms), clip-path 900ms var(--ease-in-out) var(--d, 0ms); }
+.reveal[data-in="false"] { opacity: 0; }
+.reveal[data-reveal="up"][data-in="false"] { transform: translateY(28px); }
+.reveal[data-reveal="scale"][data-in="false"] { transform: translateY(20px) scale(0.96); }
+.reveal[data-reveal="left"][data-in="false"] { transform: translateX(-32px); }
+.reveal[data-reveal="right"][data-in="false"] { transform: translateX(32px); }
+.reveal[data-reveal="clip"][data-in="false"] { clip-path: inset(0 0 100% 0); opacity: 1; }
+.reveal[data-reveal="clip"][data-in="true"] { clip-path: inset(0 0 0 0); }
+
+/* ---------- logo marquee: constant motion, so linear ---------- */
+.marquee { -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.marquee-track { display: flex; width: max-content; animation: marquee 48s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* ---------- product tour: the screenshot scrolls itself ---------- */
+.scroll-shot[data-run="true"] { animation: shot-scroll var(--dur, 20s) ease-in-out 1.4s infinite alternate; will-change: transform; }
+.scroll-frame:hover .scroll-shot, .scroll-frame:focus-within .scroll-shot { animation-play-state: paused; }
+@keyframes shot-scroll { to { transform: translateY(var(--shift, 0%)); } }
+.tour-swap { animation: tour-in 380ms var(--ease-out) both; }
+@keyframes tour-in { from { opacity: 0; filter: blur(3px); transform: translateY(6px); } to { opacity: 1; filter: blur(0); transform: none; } }
+
+/* ---------- AI summary: words resolve in as if being written ---------- */
+.ai-word { display: inline; opacity: 0; filter: blur(4px); transition: opacity 420ms var(--ease-out) var(--wd, 0ms), filter 420ms var(--ease-out) var(--wd, 0ms); }
+[data-in="true"] .ai-word { opacity: 1; filter: blur(0); }
+.ai-caret { display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: -0.15em; background: var(--accent); animation: blink 1s steps(1) infinite; border-radius: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------- how it works: connector draws itself ---------- */
+.connector { transform-origin: left; transform: scaleX(0); transition: transform 1100ms var(--ease-in-out) 200ms; }
+[data-in="true"] .connector { transform: scaleX(1); }
+.step-dot { opacity: 0; transform: scale(0.85); transition: opacity 400ms var(--ease-out) var(--d, 0ms), transform 400ms var(--ease-out) var(--d, 0ms); }
+[data-in="true"] .step-dot { opacity: 1; transform: none; }
+
+/* ---------- FAQ accordion (height is the one thing with no transform equivalent) ---------- */
+.faq-panel { height: var(--accordion-panel-height); overflow: hidden; transition: height 240ms var(--ease-out), opacity 240ms var(--ease-out); }
+.faq-panel[data-starting-style], .faq-panel[data-ending-style] { height: 0; opacity: 0; }
+.faq-chevron { transition: transform 240ms var(--ease-out); }
+[data-panel-open] .faq-chevron { transform: rotate(180deg); }
+
+/* ---------- feature cards ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .lift { transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out); }
+  .lift:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px var(--ring-strong), 0 18px 40px -16px rgb(0 0 0 / 0.3); }
+}
+
+/* ---------- reduced motion: fewer and gentler, not none ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .aurora span:nth-child(n), .float, .marquee-track { animation: none; }
+  .hero-line { animation: fade-only 400ms ease forwards; animation-delay: 0ms; transform: none; }
+  .reveal { transition: opacity 400ms ease; }
+  .reveal[data-in="false"] { transform: none; }
+  .reveal[data-reveal="clip"][data-in="false"] { clip-path: none; }
+  .scroll-shot[data-run="true"] { animation: none; }
+  .tour-swap { animation: fade-only 200ms ease both; }
+  .ai-word { filter: none; transition: opacity 300ms ease; }
+  .ai-caret { animation: none; }
+  .connector { transition: none; transform: scaleX(1); }
+  .step-dot { transform: none; }
+  .lift:hover { transform: none; }
+}
