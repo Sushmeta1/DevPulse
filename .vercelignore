@@ -1,0 +1,10 @@
+docs
+backend/tests
+frontend/e2e
+frontend/src/**/*.test.*
+frontend/test-results
+frontend/playwright-report
+Dockerfile
+docker-compose.yml
+railway.json
+.github

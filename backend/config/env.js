@@ -8,7 +8,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env'), quiet: true });
 function loadConfig(env = process.env) {
   const isProd = env.NODE_ENV === 'production';
   const port = Number(env.PORT) || 4000;
-  const baseUrl = (env.BASE_URL || `http://localhost:${port}`).replace(/\/$/, '');
+  // On Vercel the production domain is injected for us; locally and elsewhere BASE_URL (or localhost) is used.
+  const vercelHost = env.VERCEL_PROJECT_PRODUCTION_URL || env.VERCEL_URL;
+  const baseUrl = (env.BASE_URL || (vercelHost ? `https://${vercelHost}` : `http://localhost:${port}`)).replace(/\/$/, '');
 
   return {
     isProd,
@@ -18,6 +20,9 @@ function loadConfig(env = process.env) {
     frontendDist: env.FRONTEND_DIST || path.resolve(__dirname, '../../frontend/dist'),
     databaseUrl: env.DATABASE_URL || 'postgresql://devpulse:devpulse@localhost:5432/devpulse',
     databaseSsl: env.DATABASE_SSL === 'true',
+    // A serverless instance should hold few connections; many instances may exist at once.
+    dbPoolMax: Number(env.DB_POOL_MAX) || (env.VERCEL ? 3 : 10),
+    migrateOnStart: env.MIGRATE_ON_START !== 'false',
     logRequests: env.NODE_ENV !== 'test',
     // Multiplies every rate-limit ceiling. Leave at 1 in production; end-to-end runs log in dozens of times from one IP.
     rateLimitScale: Number(env.RATE_LIMIT_SCALE) > 0 ? Number(env.RATE_LIMIT_SCALE) : 1,

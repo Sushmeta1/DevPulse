@@ -14,8 +14,9 @@ flowchart LR
   end
 ```
 
-In production a single container serves both the API (`/api/*`) and the built React app, so cookies are same-origin and
-there is no CORS surface. The image is built by GitHub Actions, pushed to GHCR and deployed to Railway.
+In production the API and the React app share one origin, so cookies are first-party and there is no CORS surface. Two
+supported shapes: **Vercel + Neon** (static app on the CDN, the API as one serverless function via `api/index.js`; free), or a
+**single container** (`Dockerfile`) on Railway or any host that serves both. See `docs/DEPLOY_VERCEL.md`.
 
 ## Request flow for one dashboard view
 
@@ -90,4 +91,4 @@ shown it to. Deleting a user cascades through everything above.
 - GitHub's REST pagination bounds history to the 1,000 most recent commits and 500 most recently updated PRs per
   repository; the UI says so when it affects the selected range.
 - Review-level data (time to first review, PR size) needs one extra API call per PR and is deliberately not collected.
-- Rate limiting and the in-flight sync map are per process; running several replicas would want a shared store (Redis).
+- Rate limiting and the in-flight sync map are per process/instance (and so per serverless instance); running at scale would want a shared store (Redis).
