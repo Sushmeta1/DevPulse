@@ -1,0 +1,6 @@
+{
+  "name": "devpulse",
+  "private": true,
+  "description": "AI-powered GitHub activity dashboard. Each app (backend/, frontend/) has its own package.json; this file only pins the runtime for hosts that read it.",
+  "engines": { "node": "22.x" }
+}

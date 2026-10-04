@@ -4,7 +4,8 @@ function createPool(config) {
   const pool = new Pool({
     connectionString: config.databaseUrl,
     ssl: config.databaseSsl ? { rejectUnauthorized: false } : undefined,
-    max: 10,
+    max: config.dbPoolMax || 10,
+    idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000,
     statement_timeout: 20000, // a runaway query must not hold a connection forever
   });

@@ -9,7 +9,7 @@ DevPulse brings a team's GitHub activity (repositories, commits, pull requests, 
 | Database | PostgreSQL |
 | Auth | GitHub OAuth (session in an httpOnly JWT cookie) |
 | AI | Google Gemini or OpenAI API (rule-based fallback when no key is set) |
-| DevOps | Docker, GitHub Actions, Railway |
+| DevOps | Vercel + Neon (free) or Docker / Railway, GitHub Actions |
 
 ## Try it without any setup: the live demo
 
@@ -143,20 +143,32 @@ cd frontend && E2E_DATABASE_URL=postgresql://... npm run e2e                  # 
 ```
 The e2e suite needs a Chromium (`npx playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM_PATH`).
 
-## CI/CD and deployment (Railway)
+## Deployment
+
+**Recommended, free: Vercel + Neon** - step by step in [docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md). Vercel serves the React app from its
+CDN and runs the API as a single serverless function (`api/index.js`, configured by `vercel.json`); Neon provides PostgreSQL.
+Every push to `main` redeploys automatically through Vercel's Git integration.
+
+**Alternative: any container host (Railway, Fly, a VPS)** using the `Dockerfile` / `docker-compose.yml`. Costs money on most hosts
+(Railway: $5/month minimum after a one-time trial credit).
+
+### CI
 
 `.github/workflows/ci.yml` runs on every push/PR:
 
 1. **Test & build** - lint, backend tests against a PostgreSQL service container, frontend tests and build.
 2. **End-to-end & accessibility** - Playwright drives the built app against PostgreSQL in demo mode.
 3. **Docker** - builds the image; on `main` pushes it to GitHub Container Registry (`ghcr.io/<owner>/<repo>`).
-4. **Deploy** - on `main`, deploys to Railway with `railway up`.
+4. **Deploy to Railway** - optional: only runs when a `RAILWAY_TOKEN` secret exists; skipped otherwise. Not needed for Vercel.
 
-Railway setup:
+<details><summary>Railway setup</summary>
+
 1. Create a Railway project with a **PostgreSQL** plugin and an empty service named `devpulse` (or set the `RAILWAY_SERVICE` repo variable).
-2. On the service set variables: `NODE_ENV=production`, `DATABASE_URL` (reference the Postgres plugin), `DATABASE_SSL=false` (internal network), `BASE_URL` and `FRONTEND_URL` (both = the service's public URL), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, and optionally `AI_PROVIDER` + the API key.
-3. Update the GitHub OAuth app's callback URL to `https://<your-domain>/api/auth/github/callback`.
+2. Service variables: `NODE_ENV=production`, `DATABASE_URL` (reference the plugin), `DATABASE_SSL=false`, `BASE_URL` and `FRONTEND_URL`
+   (the public URL), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY`, optionally `AI_PROVIDER` + key.
+3. Point the GitHub OAuth app's callback at `https://<your-domain>/api/auth/github/callback`.
 4. Add a Railway **project token** as the `RAILWAY_TOKEN` secret in GitHub (Settings -> Secrets and variables -> Actions).
+</details>
 
 The production server refuses to start if the required secrets are missing.
 
