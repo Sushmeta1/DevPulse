@@ -6,6 +6,8 @@ const user = require('../controllers/userController');
 const repos = require('../controllers/repositoryController');
 const analytics = require('../controllers/analyticsController');
 const ai = require('../controllers/aiController');
+const team = require('../controllers/teamController');
+const digest = require('../controllers/digestController');
 
 const limiterFor = (scale) => (max, windowMs = 15 * 60 * 1000) =>
   rateLimit({ windowMs, max: Math.ceil(max * scale), standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests' } });
@@ -25,6 +27,8 @@ function createRouter(config) {
   });
 
   router.get('/config', auth.publicConfig);
+  router.get('/cron/digest', limiter(20), digest.cronDigest);
+  router.post('/cron/digest', limiter(20), digest.cronDigest);
   router.post('/auth/demo', limiter(30), auth.demoLogin);
   router.get('/auth/github', limiter(30), auth.redirectToGithub);
   router.get('/auth/github/callback', limiter(30), auth.handleCallback);
@@ -39,9 +43,16 @@ function createRouter(config) {
   router.get('/repositories/:owner/:repo/pulls', requireAuth, repos.listPulls);
 
   router.get('/analytics/summary', requireAuth, analytics.getSummary);
+  router.get('/team/summary', requireAuth, team.getTeamSummary);
 
   router.post('/ai/sprint-summary', requireAuth, limiter(20, 60 * 1000), ai.createSprintSummary);
   router.get('/ai/reports', requireAuth, ai.listReports);
+
+  router.get('/digest', requireAuth, digest.getDigest);
+  router.put('/digest', requireAuth, digest.putDigest);
+  router.delete('/digest', requireAuth, digest.deleteDigest);
+  router.post('/digest/preview', requireAuth, limiter(20, 60 * 60 * 1000), digest.previewDigest);
+  router.post('/digest/send-test', requireAuth, limiter(5, 60 * 60 * 1000), digest.sendTest);
 
   return router;
 }

@@ -26,6 +26,11 @@ function loadConfig(env = process.env) {
     logRequests: env.NODE_ENV !== 'test',
     // Multiplies every rate-limit ceiling. Leave at 1 in production; end-to-end runs log in dozens of times from one IP.
     rateLimitScale: Number(env.RATE_LIMIT_SCALE) > 0 ? Number(env.RATE_LIMIT_SCALE) : 1,
+    cronSecret: env.CRON_SECRET || '',
+    digestScheduler: env.DIGEST_SCHEDULER !== 'off',
+    digestHourUtc: Number(env.DIGEST_HOUR_UTC ?? 7),
+    // Email goes through Resend's HTTPS API (free tier is plenty for a weekly digest); Slack needs nothing but a webhook URL.
+    email: { apiKey: env.RESEND_API_KEY || '', from: env.DIGEST_FROM || '' },
     demoEnabled: env.DEMO_ENABLED !== 'false',
     github: {
       clientId: env.GITHUB_CLIENT_ID || '',

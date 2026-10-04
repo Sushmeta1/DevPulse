@@ -184,7 +184,7 @@ function buildSummary({ commits, pulls, openPulls = [], reviewRows = [], days, n
   const waiting = openPulls
     .filter((p) => eligible(p) && !p.first_review_at)
     .map((p) => ({
-      number: p.number, title: p.title, authorLogin: p.author_login, htmlUrl: p.html_url, createdAt: p.created_at,
+      number: p.number, title: p.title, authorLogin: p.author_login, htmlUrl: p.html_url, createdAt: p.created_at, repo: p.repo ?? null,
       hoursWaiting: Math.round(((nowMs - new Date(p.created_at).getTime()) / HOUR) * 10) / 10,
     }))
     .sort((a, b) => b.hoursWaiting - a.hoursWaiting);

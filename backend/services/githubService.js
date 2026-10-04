@@ -68,6 +68,16 @@ async function exchangeCodeForToken(github, code) {
 
 const getAuthenticatedUser = (token) => request(token, '/user');
 
+/** The user's primary, verified e-mail (needs the user:email scope). Null when unavailable - never an error. */
+async function getPrimaryEmail(token) {
+  try {
+    const emails = await request(token, '/user/emails');
+    return emails.find((e) => e.primary && e.verified)?.email ?? emails.find((e) => e.verified)?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // --- Data ----------------------------------------------------------------
 
 const normalizeRepo = (r) => ({
@@ -208,6 +218,7 @@ async function revokeGrant(github, token) {
 
 module.exports = {
   revokeGrant,
+  getPrimaryEmail,
   exchangeCodeForToken,
   getAuthenticatedUser,
   listRepositories,
