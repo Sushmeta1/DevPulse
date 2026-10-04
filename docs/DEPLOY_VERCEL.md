@@ -31,6 +31,8 @@ Keep the Client ID and generate a Client Secret. (You can create the app first w
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | from step 2 |
 | `JWT_SECRET`, `TOKEN_ENCRYPTION_KEY` | two different values from `openssl rand -hex 32` |
 | `AI_PROVIDER` + `GEMINI_API_KEY` *(or `OPENAI_API_KEY`)* | optional; without a key you get free rule-based summaries |
+| `CRON_SECRET` | optional; enables the weekly digest. Vercel Cron (`vercel.json`) calls `/api/cron/digest` daily at 07:00 UTC with this secret, and each user's digest goes out on the weekday they chose |
+| `RESEND_API_KEY`, `DIGEST_FROM` | optional; only needed for digests by e-mail (Slack needs nothing on the server) |
 | `BASE_URL` | only if you use a custom domain, e.g. `https://pulse.example.edu` |
 
    `BASE_URL` is otherwise derived automatically from Vercel's production domain, so the OAuth callback URL matches.

@@ -10,6 +10,9 @@ test.skip(!process.env.SCREENSHOTS, 'set SCREENSHOTS=1 (npm run screenshots) to 
 const shots = [
   ['overview', '/dashboard?repo=acme/web&range=30', true],
   ['repositories', '/dashboard/repositories', false],
+  ['reviews', '/dashboard/reviews?repo=acme/web&range=30', false],
+  ['team', '/dashboard/team?repos=acme/web,acme/api,acme/mobile,acme/design-system&range=30', false],
+  ['digest', '/dashboard/digest', false],
   ['pull-requests', '/dashboard/pulls?repo=acme/api&range=30', false],
   ['contributors', '/dashboard/people?repo=acme/web&range=30&who=maya-chen', false],
   ['insights', '/dashboard/insights?repo=acme/web&range=30', false],

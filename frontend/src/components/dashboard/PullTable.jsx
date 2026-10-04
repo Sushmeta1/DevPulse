@@ -79,6 +79,13 @@ export function PullTable({ pulls }) {
                     <span>opened {timeAgo(p.createdAt)}</span>
                   </p>
                 </div>
+                {p.isDraft && p.state === 'open' && <Badge className="hidden sm:inline-flex">Draft</Badge>}
+                {p.state === 'open' && !p.isDraft && !p.authorIsBot && p.reviewsKnown && !p.firstReviewAt && <Badge tone="amber" className="hidden sm:inline-flex">No review yet</Badge>}
+                {p.firstReviewAt && p.firstReviewer && (
+                  <span className="hidden shrink-0 text-xs text-fg-muted md:block" title={`First review by ${p.firstReviewer}`}>
+                    <span className="num">{formatHours((new Date(p.firstReviewAt) - new Date(p.createdAt)) / 3600000)}</span> to review
+                  </span>
+                )}
                 {p.state === 'open' && ageDays > STALE_DAYS && <Badge tone="amber" className="hidden sm:inline-flex">Stale · {plural(Math.floor(ageDays), 'day')}</Badge>}
                 {lead !== null && <span className="num hidden shrink-0 text-xs text-fg-muted sm:block">merged in {formatHours(lead)}</span>}
                 <Badge tone={p.state === 'open' ? 'green' : p.state === 'merged' ? 'violet' : 'red'} className="capitalize">{p.state}</Badge>

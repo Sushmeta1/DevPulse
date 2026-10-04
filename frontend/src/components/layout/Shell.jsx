@@ -1,4 +1,4 @@
-import { Outlet, useMatch } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { ChevronsUpDown, Lock, Search } from 'lucide-react';
 import { TooltipProvider } from '../ui/Tooltip.jsx';
 import { Kbd } from '../ui/Kbd.jsx';
@@ -11,6 +11,8 @@ import { PageHeader, DashboardGate } from './PageHeader.jsx';
 import { Logo } from '../ui/Logo.jsx';
 import { useAuth } from '../../state/auth.jsx';
 import { useWorkspace } from '../../state/workspace.jsx';
+
+const PORTFOLIO = ['/dashboard/repositories', '/dashboard/team', '/dashboard/digest'];
 
 function RepoButton() {
   const { open } = useCommandMenu();
@@ -67,14 +69,19 @@ export function Shell() {
   const ws = useWorkspace();
   const openPulls = ws.data?.summary.totals.openPullRequests;
 
-  const portfolio = Boolean(useMatch('/dashboard/repositories'));
+  // Pages about the whole account, not one repository: they skip the repository header and gate.
+  const { pathname } = useLocation();
+  const portfolio = PORTFOLIO.some((p) => pathname === p || pathname === `${p}/`);
 
   const items = [
     { to: '/dashboard/repositories', label: 'Repositories' },
+    { to: '/dashboard/team', label: 'Team' },
     { to: '/dashboard', label: 'Overview', end: true },
     { to: '/dashboard/pulls', label: 'Pull requests', count: openPulls },
+    { to: '/dashboard/reviews', label: 'Reviews' },
     { to: '/dashboard/people', label: 'Contributors' },
     { to: '/dashboard/insights', label: 'Insights' },
+    { to: '/dashboard/digest', label: 'Digest' },
   ];
 
   return (

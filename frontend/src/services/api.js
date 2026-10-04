@@ -1,7 +1,8 @@
 export class ApiError extends Error {
-  constructor(status, message) {
+  constructor(status, message, data = {}) {
     super(message);
     this.status = status;
+    this.data = data; // the parsed error body, e.g. per-channel results from a failed test digest
   }
 }
 
@@ -24,7 +25,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   }
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, data.error || `Request failed (${res.status})`, data);
   return data;
 }
 
@@ -44,5 +45,14 @@ export const api = {
   commits: (repo, days, signal) => request(`/repositories/${repoPath(repo)}/commits?days=${days}`, { signal }),
   reports: (repo, signal) => request(`/ai/reports?repo=${enc(repo)}`, { signal }),
   generateSummary: (repo, days) => request('/ai/sprint-summary', { method: 'POST', body: { repo, days, tzOffset: tzOffset() } }),
+  team: (repos, days, refresh, signal) => {
+    const list = repos?.length ? `&repos=${enc(repos.join(','))}` : '';
+    return request(`/team/summary?days=${days}&tzOffset=${tzOffset()}${list}${refresh ? '&refresh=true' : ''}`, { signal });
+  },
+  digest: (signal) => request('/digest', { signal }),
+  saveDigest: (body) => request('/digest', { method: 'PUT', body: { ...body, tzOffset: tzOffset() } }),
+  deleteDigest: () => request('/digest', { method: 'DELETE' }),
+  previewDigest: (repos, signal) => request('/digest/preview', { method: 'POST', body: { repos, tzOffset: tzOffset() }, signal }),
+  sendTestDigest: () => request('/digest/send-test', { method: 'POST' }),
   loginUrl: '/api/auth/github',
 };

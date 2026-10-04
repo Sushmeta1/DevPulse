@@ -10,6 +10,7 @@ const FAQ = [
   ['What does the AI see?', 'Aggregated numbers only: totals, rates, daily counts and top contributors. Never source code and never commit messages. Without an AI key you still get a rule-based summary.'],
   ['How fresh is the data?', 'The first view of a repository syncs up to 180 days of history. After that, refreshes only fetch what changed, and views within two minutes are served from the database.'],
   ['What are the limits?', 'GitHub\'s API caps history at the 1,000 most recent commits per repository. When that affects the range you are viewing, DevPulse shows a notice and withholds period comparisons instead of guessing.'],
+  ['What does the weekly digest send?', 'Totals for the last seven days across the repositories you pick, the pull requests waiting longest for a review, and the top reviewers. It goes to a Slack incoming webhook you provide and/or your GitHub e-mail. Slack webhooks are stored encrypted, and you can pause or delete the digest at any time.'],
   ['Can I delete my data?', 'Yes, from the account menu. It removes your account, stored repository snapshots and AI reports, and revokes DevPulse\'s grant on GitHub.'],
 ];
 

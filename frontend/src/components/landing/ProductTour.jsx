@@ -15,6 +15,24 @@ const TABS = {
     text: 'KPI cards with period-over-period change, an interactive activity chart, a contribution calendar, a weekday-by-hour punchcard, pull request outcomes and a time-to-merge histogram.',
     alt: 'The full Overview page, scrolling from KPI cards through the activity chart, calendar, punchcard, pull request charts, contributors and the AI summary.',
   },
+  reviews: {
+    label: 'Reviews', url: 'devpulse.app/dashboard/reviews',
+    title: 'How long does work wait for a review?',
+    text: 'Median time to first review, who is waiting right now, how reviews are spread across people, and how pull request size changes lead time. GitHub does not show any of this.',
+    alt: 'The Reviews page: first-review speed, the pull requests waiting longest, reviewer load and a pull request size chart.',
+  },
+  team: {
+    label: 'Team', url: 'devpulse.app/dashboard/team',
+    title: 'Every repository, side by side',
+    text: 'Combine repositories into one view: shared totals, a sortable comparison table, and one list of everything waiting for a review across the team.',
+    alt: 'The Team page with combined KPI cards, an activity chart and a table comparing repositories.',
+  },
+  digest: {
+    label: 'Digest', url: 'devpulse.app/dashboard/digest',
+    title: 'Monday morning, in your channel',
+    text: 'A weekly summary sent to Slack or e-mail: what shipped, what is stuck, and who is carrying the reviews. Preview exactly what will be sent before you turn it on.',
+    alt: 'The Digest page with delivery settings and a preview of the weekly e-mail.',
+  },
   repositories: {
     label: 'Repositories', url: 'devpulse.app/dashboard/repositories',
     title: 'Every repository at a glance',
@@ -60,7 +78,7 @@ export function ProductTour() {
           These are real screenshots of the built-in demo workspace. The page scrolls itself; hover to pause.
         </SectionHead>
 
-        <Reveal delay={100} className="mt-10 flex justify-center">
+        <Reveal delay={100} className="scroll-x mt-10 flex max-w-full sm:justify-center">
           <Segmented label="Product tour page" value={tab} onChange={setTab} options={Object.entries(TABS).map(([value, t]) => ({ value, label: t.label }))} />
         </Reveal>
 

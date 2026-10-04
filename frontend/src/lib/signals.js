@@ -21,6 +21,29 @@ export function deriveSignals(summary) {
     });
   }
 
+  // Time to first review: the number teams most often feel but rarely measure
+  const rv = summary.reviews;
+  if (rv?.available) {
+    const m = rv.firstReview.medianHours;
+    if (m === null) {
+      out.push({ id: 'firstReview', label: 'First review', value: '-', status: 'neutral', detail: rv.waitingCount ? `${formatNumber(rv.waitingCount)} pull request(s) are still waiting for their first review.` : 'No pull requests were reviewed in this period.' });
+    } else {
+      const waiting = rv.waitingCount ? ` ${formatNumber(rv.waitingCount)} still waiting.` : '';
+      out.push({
+        id: 'firstReview', label: 'First review', value: formatHours(m),
+        status: m <= 8 ? 'good' : m <= 24 ? 'warn' : 'bad',
+        detail: `Median wait for a first review${rv.firstReview.withinDayPct !== null ? `; ${rv.firstReview.withinDayPct}% got one within a day` : ''}.${waiting}`,
+      });
+    }
+    if (rv.reviewerCount > 1 && rv.topReviewerShare !== null) {
+      out.push({
+        id: 'reviewLoad', label: 'Review load', value: `${rv.topReviewerShare}% one reviewer`,
+        status: rv.topReviewerShare <= 50 ? 'good' : rv.topReviewerShare <= 70 ? 'warn' : 'bad',
+        detail: `${rv.reviewers[0].login} did ${rv.topReviewerShare}% of the reviews across ${formatNumber(rv.reviewerCount)} reviewers.`,
+      });
+    }
+  }
+
   // Stale PRs
   out.push({
     id: 'stale', label: 'Stale pull requests', value: formatNumber(t.stalePullRequests),

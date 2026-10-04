@@ -20,6 +20,19 @@ export const summary = {
     { login: 'Sam Okafor', name: 'Sam Okafor', linked: false, commits: 8, pullRequests: 0, activeDays: 4, series: daily.map(() => 0) },
   ],
   dataQuality: { truncated: false, historyFrom: null, incomplete: false },
+  reviews: {
+    available: true,
+    firstReview: {
+      medianHours: 6, p90Hours: 20, reviewedCount: 4, withinDayPct: 80,
+      distribution: [{ label: '< 1h', count: 1 }, { label: '1-4h', count: 1 }, { label: '4-24h', count: 2 }, { label: '1-3d', count: 0 }, { label: '3-7d', count: 0 }, { label: '> 7d', count: 0 }],
+    },
+    previousMedianHours: 12,
+    waitingCount: 1,
+    waiting: [{ number: 3, title: 'Add retry logic', authorLogin: 'ann', hoursWaiting: 30, htmlUrl: 'https://github.com/a/b/pull/3' }],
+    reviewers: [{ login: 'bob', reviews: 6, share: 75 }, { login: 'cy', reviews: 2, share: 25 }],
+    reviewerCount: 2, totalReviews: 8, topReviewerShare: 75,
+  },
+  size: { medianLines: 40, buckets: [] },
 };
 
 export const pulls = [

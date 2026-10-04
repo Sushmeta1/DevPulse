@@ -1,4 +1,5 @@
 import { ContributorsCard } from '../components/dashboard/ContributorsCard.jsx';
+import { CommitsFeed } from '../components/dashboard/CommitsFeed.jsx';
 import { Heatmap } from '../components/charts/Heatmap.jsx';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { Card, CardBody } from '../components/ui/Card.jsx';
@@ -9,7 +10,7 @@ import { formatNumber, plural } from '../lib/format.js';
 
 export default function People() {
   const { data, who, setWho, repo } = useWorkspace();
-  const { summary } = data;
+  const { summary, commits } = data;
   useDocumentTitle(`${repo} · Contributors`);
   const person = who ? summary.topContributors.find((p) => p.login === who) : null;
   const shown = summary.topContributors.length;
@@ -60,6 +61,7 @@ export default function People() {
           />
         </div>
       </div>
+      <CommitsFeed commits={commits} />
     </div>
   );
 }

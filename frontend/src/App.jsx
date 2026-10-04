@@ -16,6 +16,9 @@ const Overview = lazy(() => import('./pages/Overview.jsx'));
 const Pulls = lazy(() => import('./pages/Pulls.jsx'));
 const People = lazy(() => import('./pages/People.jsx'));
 const Insights = lazy(() => import('./pages/Insights.jsx'));
+const Reviews = lazy(() => import('./pages/Reviews.jsx'));
+const Team = lazy(() => import('./pages/Team.jsx'));
+const Digest = lazy(() => import('./pages/Digest.jsx'));
 
 function Splash() {
   return <div className="grid min-h-dvh place-items-center text-fg-faint" role="status" aria-label="Loading"><Spinner size={20} /></div>;
@@ -37,6 +40,9 @@ function Routed() {
       >
         <Route index element={<Lazy><Overview /></Lazy>} />
         <Route path="repositories" element={<Lazy><Repositories /></Lazy>} />
+        <Route path="team" element={<Lazy><Team /></Lazy>} />
+        <Route path="digest" element={<Lazy><Digest /></Lazy>} />
+        <Route path="reviews" element={<Lazy><Reviews /></Lazy>} />
         <Route path="pulls" element={<Lazy><Pulls /></Lazy>} />
         <Route path="people" element={<Lazy><People /></Lazy>} />
         <Route path="insights" element={<Lazy><Insights /></Lazy>} />

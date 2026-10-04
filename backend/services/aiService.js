@@ -1,5 +1,6 @@
 const { HttpError } = require('../utils/httpError');
 const { fetchWithTimeout } = require('../utils/http');
+const { HOUR_LABEL } = require('./digestRender');
 
 function buildPrompt(repoName, summary) {
   const t = summary.totals;
@@ -74,7 +75,7 @@ function localReport(repoName, summary) {
   if (rv?.firstReview.medianHours !== null && rv?.firstReview.medianHours !== undefined) {
     insights.push(`Median time to first review was ${rv.firstReview.medianHours}h${rv.firstReview.withinDayPct !== null ? `, with ${rv.firstReview.withinDayPct}% reviewed within a day` : ''}.`);
   }
-  if (rv?.waitingCount > 0) suggestions.push(`${rv.waitingCount} pull request(s) are still waiting for a first review; the longest has waited ${Math.round(rv.waiting[0].hoursWaiting)}h.`);
+  if (rv?.waitingCount > 0) suggestions.push(`${rv.waitingCount} pull request(s) are still waiting for a first review; the longest has waited ${HOUR_LABEL(rv.waiting[0].hoursWaiting)}.`);
   if (rv?.topReviewerShare >= 60 && rv.reviewerCount > 1) suggestions.push(`One person did ${rv.topReviewerShare}% of reviews; spreading review load would remove a bottleneck.`);
   if (t.stalePullRequests > 0) suggestions.push(`${t.stalePullRequests} open pull request(s) are older than 14 days; close or unblock them.`);
   else if (t.openPullRequests > 3) suggestions.push(`Review the ${t.openPullRequests} open pull requests to keep work from piling up.`);

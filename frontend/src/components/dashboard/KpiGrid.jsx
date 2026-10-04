@@ -37,10 +37,13 @@ function SparkKpi({ label, value, previous, values, dates, color, hint, index, f
 
 export function KpiGrid({ summary }) {
   const first = useFirstOnly('kpis');
-  const { totals: t, previous, daily, topContributors, leadTime } = summary;
+  const { totals: t, previous, daily, topContributors, leadTime, reviews: rv } = summary;
   const dates = daily.map((d) => d.date);
   const leadTotal = leadTime.reduce((n, b) => n + b.count, 0);
   const leadMax = Math.max(1, ...leadTime.map((b) => b.count));
+  const reviewDist = rv.available ? rv.firstReview.distribution : [];
+  const reviewTotal = reviewDist.reduce((n, b) => n + b.count, 0);
+  const reviewMax = Math.max(1, ...reviewDist.map((b) => b.count));
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -54,33 +57,55 @@ export function KpiGrid({ summary }) {
         color="var(--green)" noun="PR opened" index={1} first={first}
         hint={`${t.mergedPullRequests} merged · ${t.openPullRequests} open now`}
       />
-      <Kpi label="Contributors" index={2} first={first}>
-        <div className="mt-1.5 flex items-baseline gap-2.5">
-          <Number value={t.contributors} className="num text-[28px] font-semibold leading-none tracking-tight" />
-          <Delta current={t.contributors} previous={previous?.contributors} />
-        </div>
-        <p className="mt-1.5 truncate text-xs text-fg-muted">
-          {t.longestStreak > 1 ? `Longest streak: ${plural(t.longestStreak, 'day')}` : 'People who committed or opened a PR'}
-        </p>
-        <div className="mt-3 flex h-10 items-center">
-          {topContributors.length === 0 ? (
-            <span className="text-xs text-fg-faint">No one yet</span>
-          ) : (
-            <div className="flex -space-x-2">
-              {topContributors.slice(0, 6).map((p) => (
-                <span key={p.login} className="rounded-full ring-2 ring-[var(--surface)]" title={p.name || p.login}>
-                  <Avatar login={p.linked ? p.login : null} name={p.name || p.login} size={28} />
-                </span>
-              ))}
-              {t.contributors > 6 && (
-                <span className="num grid h-7 w-7 place-items-center rounded-full bg-surface-2 text-[11px] font-medium text-fg-muted ring-2 ring-[var(--surface)]">
-                  +{t.contributors - 6}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </Kpi>
+      {rv.available ? (
+        <Kpi label="Median time to first review" index={2} first={first}>
+          <div className="mt-1.5 flex items-baseline gap-2.5">
+            <span className="num text-[28px] font-semibold leading-none tracking-tight">{formatHours(rv.firstReview.medianHours)}</span>
+            <Delta current={rv.firstReview.medianHours} previous={rv.previousMedianHours} goodWhen="down" />
+          </div>
+          <p className="mt-1.5 truncate text-xs text-fg-muted">
+            {rv.firstReview.reviewedCount === 0 ? 'No reviewed pull requests' : `${rv.firstReview.withinDayPct}% reviewed within a day`}
+            {rv.waitingCount > 0 && ` · ${rv.waitingCount} waiting`}
+          </p>
+          <div className="mt-3 flex h-10 items-end gap-1" aria-hidden="true">
+            {rv.firstReview.distribution.map((b) => (
+              <span
+                key={b.label}
+                className="flex-1 rounded-sm bg-amber"
+                style={{ height: `${reviewTotal ? Math.max(8, (b.count / reviewMax) * 100) : 8}%`, opacity: reviewTotal ? 0.25 + 0.75 * (b.count / reviewMax) : 0.15 }}
+              />
+            ))}
+          </div>
+        </Kpi>
+      ) : (
+        <Kpi label="Contributors" index={2} first={first}>
+          <div className="mt-1.5 flex items-baseline gap-2.5">
+            <Number value={t.contributors} className="num text-[28px] font-semibold leading-none tracking-tight" />
+            <Delta current={t.contributors} previous={previous?.contributors} />
+          </div>
+          <p className="mt-1.5 truncate text-xs text-fg-muted">
+            {t.longestStreak > 1 ? `Longest streak: ${plural(t.longestStreak, 'day')}` : 'People who committed or opened a PR'}
+          </p>
+          <div className="mt-3 flex h-10 items-center">
+            {topContributors.length === 0 ? (
+              <span className="text-xs text-fg-faint">No one yet</span>
+            ) : (
+              <div className="flex -space-x-2">
+                {topContributors.slice(0, 6).map((p) => (
+                  <span key={p.login} className="rounded-full ring-2 ring-[var(--surface)]" title={p.name || p.login}>
+                    <Avatar login={p.linked ? p.login : null} name={p.name || p.login} size={28} />
+                  </span>
+                ))}
+                {t.contributors > 6 && (
+                  <span className="num grid h-7 w-7 place-items-center rounded-full bg-surface-2 text-[11px] font-medium text-fg-muted ring-2 ring-[var(--surface)]">
+                    +{t.contributors - 6}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </Kpi>
+      )}
       <Kpi label="Median time to merge" index={3} first={first}>
         <div className="mt-1.5 flex items-baseline gap-2.5">
           <span className="num text-[28px] font-semibold leading-none tracking-tight">{formatHours(t.medianMergeHours)}</span>

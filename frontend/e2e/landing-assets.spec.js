@@ -11,6 +11,9 @@ test.skip(!OUT, 'run through npm run landing:assets');
 const WARM = ['acme/api', 'acme/mobile', 'acme/design-system', 'acme/monorepo', 'acme/platform-infrastructure-consolidation-initiative-2025-q3'];
 const shots = [
   ['overview', '/dashboard?repo=acme/web&range=30'],
+  ['reviews', '/dashboard/reviews?repo=acme/web&range=30'],
+  ['team', '/dashboard/team?repos=acme/web,acme/api,acme/mobile,acme/design-system&range=30'],
+  ['digest', '/dashboard/digest'],
   ['repositories', '/dashboard/repositories'],
   ['pulls', '/dashboard/pulls?repo=acme/api&range=30'],
   ['people', '/dashboard/people?repo=acme/web&range=30&who=maya-chen'],
