@@ -1,5 +1,6 @@
 const { HttpError } = require('../utils/httpError');
 const { fetchWithTimeout } = require('../utils/http');
+const { HOUR_LABEL } = require('./digestRender');
 
 function buildPrompt(repoName, summary) {
   const t = summary.totals;
@@ -17,6 +18,11 @@ function buildPrompt(repoName, summary) {
     mergeRatePercent: t.mergeRate,
     stalePullRequests: t.stalePullRequests,
     oldestOpenPullRequestDays: t.oldestOpenDays,
+    medianHoursToFirstReview: summary.reviews?.firstReview.medianHours ?? null,
+    reviewedWithin24hPercent: summary.reviews?.firstReview.withinDayPct ?? null,
+    pullRequestsWaitingForFirstReview: summary.reviews?.waitingCount ?? 0,
+    topReviewerSharePercent: summary.reviews?.topReviewerShare ?? null,
+    medianPullRequestLines: summary.size?.medianLines ?? null,
     activeDays: t.activeDays,
     longestStreakDays: t.longestStreak,
     previousPeriod: summary.previous,
@@ -65,6 +71,12 @@ function localReport(repoName, summary) {
   if (lead) insights.push(`${lead.login} led activity with ${lead.commits} commits and ${lead.pullRequests} PRs.`);
   if (t.medianMergeHours !== null) insights.push(`Median time to merge was ${t.medianMergeHours}h (p90 ${t.p90MergeHours}h).`);
 
+  const rv = summary.reviews;
+  if (rv?.firstReview.medianHours !== null && rv?.firstReview.medianHours !== undefined) {
+    insights.push(`Median time to first review was ${rv.firstReview.medianHours}h${rv.firstReview.withinDayPct !== null ? `, with ${rv.firstReview.withinDayPct}% reviewed within a day` : ''}.`);
+  }
+  if (rv?.waitingCount > 0) suggestions.push(`${rv.waitingCount} pull request(s) are still waiting for a first review; the longest has waited ${HOUR_LABEL(rv.waiting[0].hoursWaiting)}.`);
+  if (rv?.topReviewerShare >= 60 && rv.reviewerCount > 1) suggestions.push(`One person did ${rv.topReviewerShare}% of reviews; spreading review load would remove a bottleneck.`);
   if (t.stalePullRequests > 0) suggestions.push(`${t.stalePullRequests} open pull request(s) are older than 14 days; close or unblock them.`);
   else if (t.openPullRequests > 3) suggestions.push(`Review the ${t.openPullRequests} open pull requests to keep work from piling up.`);
   if (t.medianMergeHours !== null && t.medianMergeHours > 48) suggestions.push('Median review turnaround is above 48h; consider smaller PRs or a review rotation.');

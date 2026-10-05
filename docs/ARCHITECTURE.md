@@ -50,11 +50,15 @@ erDiagram
   repositories ||--o{ commits : has
   repositories ||--o{ pull_requests : has
   repositories ||--o{ ai_reports : has
+  pull_requests ||--o{ pull_request_reviews : has
+  users ||--o| digests : configures
   users ||--o{ ai_reports : requested
   users { int id PK; bigint github_id UK; text login; text access_token_enc; bool is_demo; timestamptz repos_synced_at }
   repositories { int id PK; int user_id FK; text full_name; bool sync_truncated; timestamptz history_from; timestamptz last_synced_at }
   commits { int id PK; int repository_id FK; text sha; text author_login; text author_name; timestamptz committed_at }
   pull_requests { int id PK; int repository_id FK; int number; text state; timestamptz created_at; timestamptz merged_at }
+  pull_request_reviews { int id PK; int pull_request_id FK; text reviewer_login; text state; timestamptz submitted_at }
+  digests { int user_id PK; text_array repos; bool enabled; text slack_webhook_enc; int weekday; timestamptz last_sent_at }
   ai_reports { int id PK; int repository_id FK; int user_id FK; text provider; jsonb content; jsonb metrics }
 ```
 
@@ -90,5 +94,6 @@ shown it to. Deleting a user cascades through everything above.
 
 - GitHub's REST pagination bounds history to the 1,000 most recent commits and 500 most recently updated PRs per
   repository; the UI says so when it affects the selected range.
-- Review-level data (time to first review, PR size) needs one extra API call per PR and is deliberately not collected.
+- Review data comes from the GraphQL API in the same call that lists pull requests (up to the 500 most recently updated PRs). Existing repositories are backfilled once (`review_data_version`); until then the Reviews page says it is collecting data.
+- The weekly digest runs once a day (cron or the in-process scheduler) and sends on the weekday each user chose; a digest is claimed with a single `UPDATE ... last_attempt_at` so concurrent instances cannot double-send.
 - Rate limiting and the in-flight sync map are per process/instance (and so per serverless instance); running at scale would want a shared store (Redis).

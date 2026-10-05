@@ -40,14 +40,15 @@ async function handleCallback(req, res) {
     return fail('github_login_failed');
   }
 
+  const email = profile.email || (await github.getPrimaryEmail?.(token)) || null;
   const { rows } = await db.query(
     `INSERT INTO users (github_id, login, name, email, avatar_url, access_token_enc)
      VALUES ($1,$2,$3,$4,$5,$6)
      ON CONFLICT (github_id) DO UPDATE SET
-       login = EXCLUDED.login, name = EXCLUDED.name, email = EXCLUDED.email,
+       login = EXCLUDED.login, name = EXCLUDED.name, email = COALESCE(EXCLUDED.email, users.email),
        avatar_url = EXCLUDED.avatar_url, access_token_enc = EXCLUDED.access_token_enc, updated_at = now()
      RETURNING id, login`,
-    [profile.id, profile.login, profile.name, profile.email, profile.avatar_url, encrypt(token, config.tokenEncryptionKey)],
+    [profile.id, profile.login, profile.name, email, profile.avatar_url, encrypt(token, config.tokenEncryptionKey)],
   );
 
   res.cookie(COOKIE, signSession(config, rows[0]), cookieOptions(config));

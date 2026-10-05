@@ -1,4 +1,5 @@
 const { HttpError } = require('../utils/httpError');
+const { deriveReviewFields } = require('./reviewUtil');
 
 /**
  * Deterministic, realistic GitHub activity for the public demo. It implements the same interface as
@@ -17,6 +18,8 @@ const PEOPLE = [
   { login: 'kenji-w', name: 'Kenji 🦊 Watanabe', weight: 2, lead: 1.1 },
   { login: null, name: 'Sam Okafor', weight: 1, lead: 1 }, // commits whose e-mail isn't linked to a GitHub account
 ];
+
+const BOT = { login: 'dependabot[bot]', name: 'dependabot', weight: 0, lead: 0.4 };
 
 const REPOS = [
   { name: 'web', description: 'Customer-facing Next.js application', language: 'TypeScript', stars: 1284, forks: 143, issues: 37, people: [0, 1, 2, 3, 4, 5], perDay: 4.2, trend: 0.5, prRate: 0.9, leadHours: 14 },
@@ -121,28 +124,59 @@ function generate(spec, nowMs) {
 
     const prCount = poisson(r, spec.prRate * weekendFactor * 0.8);
     for (let k = 0; k < prCount; k++) {
-      const author = weighted(r, people.filter((p) => p.login));
+      const isBot = r() < 0.07; // dependency bumps: authored by a bot, never counted as needing a human first review
+      const author = isBot ? BOT : weighted(r, people.filter((p) => p.login));
       const created = idx * DAY + (8 + Math.floor(r() * 10)) * 3600000 + Math.floor(r() * 3600000);
       if (created > nowMs) continue;
-      const lead = spec.leadHours * author.lead * Math.exp((r() + r() + r() - 1.5) * 1.6) * 3600000;
+
+      // Bigger changes take longer to review and to merge - the relationship the Reviews page charts.
+      const lines = Math.max(2, Math.round(Math.exp(3.6 + (r() + r() + r() - 1.5) * 1.5)));
+      const sizeFactor = 0.6 + Math.log10(lines) * 0.55;
+      const lead = spec.leadHours * author.lead * sizeFactor * Math.exp((r() + r() + r() - 1.5) * 1.3) * 3600000;
       const fate = r();
       const stale = back > 18 && fate < 0.05;
       const mergedAt = created + lead;
       let state = 'merged';
       if (stale || mergedAt > nowMs) state = 'open';
       else if (fate > 0.88) state = 'closed';
+
+      // First human review: usually well before the merge, never for stale PRs nobody picked up.
+      const reviewers = people.filter((p) => p.login && p.login !== author.login);
+      const unreviewed = !isBot && reviewers.length > 0 && (stale ? r() < 0.7 : state === 'open' ? r() < 0.35 : r() < 0.04);
+      const reviews = [];
+      if (!isBot && reviewers.length && !unreviewed) {
+        const firstDelay = Math.min(lead * 0.8, spec.leadHours * 0.35 * sizeFactor * Math.exp((r() + r() + r() - 1.5) * 1.4) * 3600000);
+        const first = weighted(r, reviewers.map((p, i) => ({ ...p, weight: p.weight * (i === 0 ? 2.2 : 1) }))); // reviews pile on a few people
+        const firstAt = created + Math.max(300000, firstDelay);
+        if (firstAt < nowMs) {
+          reviews.push({ reviewer_login: first.login, is_bot: false, state: r() < 0.3 ? 'CHANGES_REQUESTED' : 'COMMENTED', submitted_at: new Date(firstAt).toISOString() });
+          if (state === 'merged' && mergedAt > firstAt) {
+            const approver = r() < 0.6 ? first : weighted(r, reviewers);
+            reviews.push({ reviewer_login: approver.login, is_bot: false, state: 'APPROVED', submitted_at: new Date(Math.max(firstAt + 60000, mergedAt - 600000)).toISOString() });
+          }
+        }
+      }
+      if (r() < 0.12 && !isBot) reviews.push({ reviewer_login: 'review-bot', is_bot: true, state: 'COMMENTED', submitted_at: new Date(created + 120000).toISOString() });
+
       const number = 1 + (idx - 19900) * 8 + k; // stable per day, realistic magnitude
-      pulls.push({
+      const pull = {
         number,
-        title: `${pick(r, TYPES)}: ${pick(r, SUBJECTS)}`,
+        title: isBot ? `chore(deps): bump ${pick(r, ['react', 'express', 'vite', 'pg', 'recharts'])} from ${1 + Math.floor(r() * 4)}.${Math.floor(r() * 9)} to ${5 + Math.floor(r() * 3)}.${Math.floor(r() * 9)}` : `${pick(r, TYPES)}: ${pick(r, SUBJECTS)}`,
         state,
         author_login: author.login,
+        author_is_bot: isBot,
+        is_draft: state === 'open' && !isBot && r() < 0.12,
         created_at: new Date(created).toISOString(),
         updated_at: new Date(state === 'open' ? created : Math.min(nowMs, mergedAt)).toISOString(),
         closed_at: state === 'open' ? null : new Date(mergedAt).toISOString(),
         merged_at: state === 'merged' ? new Date(mergedAt).toISOString() : null,
         html_url: `https://github.com/${OWNER}/${spec.name}/pull/${number}`,
-      });
+        additions: Math.round(lines * 0.7),
+        deletions: Math.round(lines * 0.3),
+        changed_files: Math.max(1, Math.round(Math.log2(lines + 1))),
+        reviews,
+      };
+      pulls.push({ ...pull, ...deriveReviewFields(pull) });
     }
   }
   commits.sort((a, b) => (a.committed_at < b.committed_at ? 1 : -1));

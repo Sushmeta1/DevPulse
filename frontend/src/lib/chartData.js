@@ -71,3 +71,18 @@ export function levelScale(values) {
   const [a, b, c] = [q(0.25), q(0.5), q(0.75)];
   return (v) => (v <= 0 ? 0 : v <= a ? 1 : v <= b ? 2 : v <= c ? 3 : 4);
 }
+
+/**
+ * One sentence on whether small pull requests really merge faster here. Needs at least a small and a large
+ * bucket with merged PRs; otherwise says nothing rather than inventing a relationship.
+ */
+export function sizeInsight(buckets) {
+  const withData = buckets.filter((b) => b.mergedCount >= 2 && b.medianMergeHours !== null);
+  if (withData.length < 2) return null;
+  const small = withData[0];
+  const large = withData.at(-1);
+  if (small.medianMergeHours <= 0 || large.label === small.label) return null;
+  const ratio = large.medianMergeHours / small.medianMergeHours;
+  if (ratio < 1.25) return { kind: 'flat', small, large, ratio };
+  return { kind: 'slower', small, large, ratio };
+}

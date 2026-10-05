@@ -56,3 +56,30 @@ describe('deriveSignals', () => {
     expect(byId(deriveSignals(s), 'spread').value).toBe('1 person');
   });
 });
+
+describe('review signals', () => {
+  const withReviews = (rv) => ({ ...base(), reviews: { available: true, waitingCount: 0, reviewerCount: 3, topReviewerShare: 40, reviewers: [{ login: 'bob' }], firstReview: { medianHours: 3, withinDayPct: 90 }, ...rv } });
+
+  it('rates first-review speed and mentions what is still waiting', () => {
+    const fast = deriveSignals(withReviews({}));
+    expect(byId(fast, 'firstReview').status).toBe('good');
+    expect(byId(fast, 'firstReview').value).toBe('3h');
+    const slow = deriveSignals(withReviews({ firstReview: { medianHours: 40, withinDayPct: 20 }, waitingCount: 4 }));
+    expect(byId(slow, 'firstReview').status).toBe('bad');
+    expect(byId(slow, 'firstReview').detail).toContain('4 still waiting');
+    expect(byId(deriveSignals(withReviews({ firstReview: { medianHours: 12, withinDayPct: 70 } })), 'firstReview').status).toBe('warn');
+  });
+
+  it('flags review load concentrated on one person, but not with a single reviewer', () => {
+    expect(byId(deriveSignals(withReviews({ topReviewerShare: 80 })), 'reviewLoad').status).toBe('bad');
+    expect(byId(deriveSignals(withReviews({ topReviewerShare: 60 })), 'reviewLoad').status).toBe('warn');
+    expect(byId(deriveSignals(withReviews({ reviewerCount: 1, topReviewerShare: 100 })), 'reviewLoad')).toBeUndefined();
+  });
+
+  it('is silent while review data is still being collected, and explains an empty period', () => {
+    expect(byId(deriveSignals({ ...base(), reviews: { available: false } }), 'firstReview')).toBeUndefined();
+    const none = byId(deriveSignals(withReviews({ firstReview: { medianHours: null, withinDayPct: null }, waitingCount: 2 })), 'firstReview');
+    expect(none.status).toBe('neutral');
+    expect(none.detail).toContain('2 pull request(s) are still waiting');
+  });
+});

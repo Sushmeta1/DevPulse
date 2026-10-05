@@ -92,7 +92,8 @@ async function listPulls(req, res) {
   const days = parseDays(req.query.days);
   const repo = await syncRepository(deps, { userId: req.user.id, token: req.githubToken, owner, name, force: req.query.refresh === 'true' });
   const { rows } = await deps.db.query(
-    `SELECT number, title, state, author_login, created_at, merged_at, closed_at, html_url FROM pull_requests
+    `SELECT number, title, state, author_login, author_is_bot, is_draft, created_at, merged_at, closed_at, html_url,
+            additions, deletions, first_review_at, first_reviewer, review_count, reviews_known FROM pull_requests
      WHERE repository_id = $1 AND created_at >= now() - make_interval(days => $2)
      ORDER BY created_at DESC LIMIT 100`,
     [repo.id, days],
@@ -100,6 +101,8 @@ async function listPulls(req, res) {
   res.json(rows.map((p) => ({
     number: p.number, title: p.title, state: p.state, authorLogin: p.author_login,
     createdAt: p.created_at, mergedAt: p.merged_at, closedAt: p.closed_at, htmlUrl: p.html_url,
+    isDraft: p.is_draft, authorIsBot: p.author_is_bot, additions: p.additions, deletions: p.deletions,
+    firstReviewAt: p.first_review_at, firstReviewer: p.first_reviewer, reviewCount: p.review_count, reviewsKnown: p.reviews_known,
   })));
 }
 

@@ -43,6 +43,14 @@ imagery comes from the real app: `cd frontend && npm run landing:assets` re-capt
 |---|---|
 | ![Pull requests](docs/screenshots/pull-requests-dark.png) | ![Contributors](docs/screenshots/contributors-dark.png) |
 
+| Reviews | Team |
+|---|---|
+| ![Reviews](docs/screenshots/reviews-dark.png) | ![Team](docs/screenshots/team-dark.png) |
+
+| Weekly digest | |
+|---|---|
+| ![Digest](docs/screenshots/digest-dark.png) | |
+
 | Insights | Light theme | Command menu | Mobile |
 |---|---|---|---|
 | ![Insights](docs/screenshots/insights-dark.png) | ![Light](docs/screenshots/overview-light.png) | ![Command menu](docs/screenshots/command-menu-dark.png) | ![Mobile](docs/screenshots/overview-mobile-dark.png) |
@@ -52,15 +60,22 @@ Regenerate them from the real app with `cd frontend && npm run screenshots`. Des
 
 ## The dashboard
 
+- **Team** - several repositories read as one: combined KPIs and activity, a sortable repository comparison, one list of
+  everything waiting for a review, and combined contributor and reviewer load. Pick up to 15 repositories (`?repos=a/b,c/d`).
+- **Reviews** - what GitHub's Insights do not show: median time to *first review* (humans only, excluding drafts, bots and
+  self-reviews), the open pull requests nobody has reviewed yet (longest wait first), reviewer load and "top reviewer share",
+  and how pull request size relates to lead time.
+- **Weekly digest** - a Slack and/or e-mail summary (shipped, stuck, who carries the reviews) with an exact preview of the
+  e-mail, Slack message and plain text before you turn it on. Slack webhooks are stored encrypted.
 - **Repositories** - every repository you can access, with search, sorting, and a 30-day activity sparkline plus open-PR
   count for the ones DevPulse has analyzed; totals across all of them at the top.
 
 - **Overview** - KPI cards with sparklines and period-over-period deltas, an interactive activity chart (commits / PRs opened /
   PRs merged, daily or weekly, previous-period overlay, per-day top contributors in the tooltip), contribution calendar, a
-  weekday x hour "when work happens" chart in *your* time zone, PR outcomes, time-to-merge histogram, contributors, recent
-  commits and the AI summary.
-- **Pull requests** - searchable, filterable list with stale-PR detection and lead times.
-- **Contributors** - per-person activity; click anyone to filter the whole dashboard (the filter lives in the URL).
+  weekday x hour "when work happens" chart in *your* time zone, time-to-merge histogram, the pull requests waiting for a
+  review, contributors and the AI summary.
+- **Pull requests** - searchable, filterable list with stale-PR detection, lead times, draft and "no review yet" badges.
+- **Contributors** - per-person activity and recent commits; click anyone to filter the whole dashboard (the filter lives in the URL).
 - **Insights** - plain-English health signals (review speed, stale PRs, knowledge spread, work rhythm, momentum) and AI report history.
 - **Account control** - *Delete account & data* (type your username to confirm) removes everything stored and revokes the GitHub grant.
 - `Cmd/Ctrl+K` command menu (repositories, pages, time range, actions), light/dark/system theme, shareable URLs
@@ -91,6 +106,10 @@ Motion follows Emil Kowalski's design-engineering rules (https://github.com/emil
 | `GET /api/repositories/:owner/:repo/commits?days=` | Recent commits |
 | `GET /api/repositories/:owner/:repo/pulls?days=` | Recent pull requests |
 | `GET /api/analytics/summary?repo=owner/name&days=&tzOffset=` | Totals, daily series, previous-period comparison, punchcard, lead-time histogram, contributors |
+| `GET /api/team/summary?repos=a/b,c/d&days=&tzOffset=` | The same summary computed over several repositories (default: all analyzed), plus a per-repository table |
+| `GET/PUT/DELETE /api/digest` | Read, save or delete your weekly digest settings |
+| `POST /api/digest/preview` / `POST /api/digest/send-test` | Render what would be sent / send it now to your channels |
+| `GET/POST /api/cron/digest` | Scheduler entry point (needs `CRON_SECRET`); sends every digest that is due |
 | `POST /api/ai/sprint-summary` `{repo, days}` | Generate and store an AI report |
 | `GET /api/ai/reports?repo=owner/name` | Previous AI reports |
 | `POST /api/auth/demo` | Start the demo workspace |

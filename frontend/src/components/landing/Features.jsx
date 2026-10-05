@@ -41,6 +41,47 @@ export function Features() {
 
       <div className="mt-20 space-y-28">
         <Row
+          eyebrow="What GitHub does not show"
+          title="Find where pull requests wait."
+          visual={(
+            <BrowserFrame url="devpulse.app/dashboard/reviews">
+              <ScrollShot src={shot('reviews', resolved)} alt="The Reviews page: median time to first review, pull requests waiting longest, reviewer load and pull request size." className="aspect-[16/11]" zoom={1.75} />
+            </BrowserFrame>
+          )}
+        >
+          <p>Time to first review, the open pull requests nobody has looked at yet, and whether two people are doing all the reviewing.</p>
+          <p>Drafts, bots and self-reviews are left out, so the number reflects how long a teammate really waited.</p>
+        </Row>
+
+        <Row
+          flip
+          eyebrow="Across repositories"
+          title="One view for the whole team."
+          visual={(
+            <BrowserFrame url="devpulse.app/dashboard/team">
+              <ScrollShot src={shot('team', resolved)} alt="The Team page: combined totals and a table comparing repositories." className="aspect-[16/11]" zoom={1.75} />
+            </BrowserFrame>
+          )}
+        >
+          <p>Pick up to fifteen repositories and read them as one: combined totals, a sortable comparison, and a single list of what is waiting.</p>
+          <p>Team numbers are computed over all the data together, so they always add up to the parts.</p>
+        </Row>
+
+        <Row
+          eyebrow="Weekly digest"
+          title="The Monday summary writes itself."
+          visual={(
+            <BrowserFrame url="devpulse.app/dashboard/digest">
+              <ScrollShot src={shot('digest', resolved)} alt="The Digest page: delivery settings and a preview of the weekly e-mail." className="aspect-[16/11]" zoom={1.75} />
+            </BrowserFrame>
+          )}
+        >
+          <p>Send the week to a Slack channel or your inbox: what shipped, what is stuck, and who carried the reviews.</p>
+          <p>Preview the e-mail and the Slack message first. Your webhook is stored encrypted and is never shown again.</p>
+        </Row>
+
+        <Row
+          flip
           eyebrow="Every repository"
           title="A portfolio view that shows where the energy is."
           visual={(
@@ -54,7 +95,6 @@ export function Features() {
         </Row>
 
         <Row
-          flip
           eyebrow="Charts you can interrogate"
           title="See when work really happens."
           visual={(
@@ -70,6 +110,7 @@ export function Features() {
         </Row>
 
         <Row
+          flip
           eyebrow="Plain-English signals"
           title="Health checks you do not have to decode."
           visual={<SignalsCard summary={SAMPLE_SUMMARY} />}

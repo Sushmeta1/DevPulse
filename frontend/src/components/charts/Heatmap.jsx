@@ -45,7 +45,11 @@ export function Heatmap({ daily, values, noun = 'commit', title = 'Contribution 
       <CardHeader title={title} description={description ?? `${plural(total, noun)} across ${plural(activeDays, 'active day')}`} />
       <CardBody>
         <div ref={ref} className="relative" onPointerLeave={hide}>
-          <div className="flex gap-2 overflow-x-auto pb-1" style={{ '--cell': '22px' }}>
+          <div
+            role="group" aria-label={`${title}, scrolls sideways`} tabIndex={0}
+            className="flex gap-2 overflow-x-auto rounded-md pb-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            style={{ '--cell': '22px' }}
+          >
             <div className="grid shrink-0 grid-rows-[16px_repeat(7,var(--cell))] gap-[3px] text-[10px] leading-none text-fg-faint" aria-hidden="true">
               <span />
               {WEEKDAY_LABELS.map((l, i) => <span key={i} className="flex items-center">{l}</span>)}

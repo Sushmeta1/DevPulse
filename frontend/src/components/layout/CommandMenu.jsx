@@ -3,7 +3,7 @@ import { Dialog } from '@base-ui/react/dialog';
 import { Command } from 'cmdk';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Boxes, Check, CornerDownLeft, GitPullRequest, LayoutDashboard, Lock, LogOut, RefreshCw, Search, Sparkles, SunMoon, Timer, Users,
+  Boxes, Check, CornerDownLeft, Mail, MessagesSquare, UsersRound, GitPullRequest, LayoutDashboard, Lock, LogOut, RefreshCw, Search, Sparkles, SunMoon, Timer, Users,
 } from 'lucide-react';
 import { Kbd } from '../ui/Kbd.jsx';
 import { useAuth } from '../../state/auth.jsx';
@@ -15,10 +15,13 @@ export const useCommandMenu = () => useContext(CommandContext);
 
 const PAGES = [
   { to: '/dashboard/repositories', label: 'All repositories', icon: Boxes },
+  { to: '/dashboard/team', label: 'Team (all repositories)', icon: UsersRound },
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { to: '/dashboard/pulls', label: 'Pull requests', icon: GitPullRequest },
+  { to: '/dashboard/reviews', label: 'Reviews', icon: MessagesSquare },
   { to: '/dashboard/people', label: 'Contributors', icon: Users },
   { to: '/dashboard/insights', label: 'Insights', icon: Sparkles },
+  { to: '/dashboard/digest', label: 'Weekly digest', icon: Mail },
 ];
 
 export function CommandProvider({ children }) {

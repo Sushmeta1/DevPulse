@@ -86,6 +86,19 @@ describe('KpiGrid', () => {
     expect(screen.getByText(/Slowest 10%: 30h/)).toBeInTheDocument();
   });
 
+  it('shows the median time to first review, with the wait count', () => {
+    render(<KpiGrid summary={summary} />);
+    const kpi = screen.getByText('Median time to first review').parentElement;
+    expect(within(kpi).getByText('6h')).toBeInTheDocument();
+    expect(within(kpi).getByText(/80% reviewed within a day · 1 waiting/)).toBeInTheDocument();
+  });
+
+  it('falls back to contributors while review data is still being collected', () => {
+    render(<KpiGrid summary={{ ...summary, reviews: { ...summary.reviews, available: false } }} />);
+    expect(screen.queryByText('Median time to first review')).toBeNull();
+    expect(screen.getByText('Contributors')).toBeInTheDocument();
+  });
+
   it('shows a dash instead of zero when nothing has merged', () => {
     const s = { ...summary, totals: { ...summary.totals, medianMergeHours: null, p90MergeHours: null }, previous: null };
     render(<KpiGrid summary={s} />);

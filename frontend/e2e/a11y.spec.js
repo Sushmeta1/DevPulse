@@ -23,6 +23,7 @@ for (const scheme of ['light', 'dark']) {
     for (const [name, path] of [
       ['overview', '/dashboard'], ['repositories', '/dashboard/repositories'], ['pull requests', '/dashboard/pulls'],
       ['contributors', '/dashboard/people'], ['insights', '/dashboard/insights'],
+      ['reviews', '/dashboard/reviews'], ['team', '/dashboard/team'], ['digest', '/dashboard/digest'],
     ]) {
       test(name, async ({ page }) => {
         await enterDemo(page, path);

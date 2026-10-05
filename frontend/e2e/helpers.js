@@ -22,7 +22,9 @@ export function trackErrors(page) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error' && !/ERR_CERT|ERR_NAME|Failed to load resource/.test(m.text())) errors.push(`console: ${m.text()}`);
+    // "Blocked script execution in 'about:srcdoc'" is Playwright injecting its own helpers into the digest preview frame,
+    // which is sandboxed on purpose (no scripts); the page itself runs nothing there.
+    if (m.type() === 'error' && !/ERR_CERT|ERR_NAME|Failed to load resource|Blocked script execution in 'about:srcdoc'/.test(m.text())) errors.push(`console: ${m.text()}`);
   });
   return errors;
 }
